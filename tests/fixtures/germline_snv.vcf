@@ -1,0 +1,19 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowQual,Description="Low quality call">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth">
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Sample depth">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allele depth REF,ALT">
+##contig=<ID=chr17,length=81195210>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr1,length=249250621>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	PATIENT_001
+chr17	43044295	rs28897672	G	A	1200	PASS	AF=0.5;DP=60;GENE=BRCA1	GT:DP:AD	0/1:60:30,30
+chr13	32316461	rs80358939	A	C	1450	PASS	AF=0.5;DP=80;GENE=BRCA2	GT:DP:AD	0/1:80:40,40
+chr17	7577538	rs28934578	C	T	350	LowQual	AF=0.45;DP=25;GENE=TP53	GT:DP:AD	0/1:25:14,11
+chr7	117548628	rs75961395	T	A	980	PASS	AF=1.0;DP=55;GENE=CFTR	GT:DP:AD	1/1:55:0,55
+chr1	11854476	rs2230926	G	T	200	PASS	AF=0.5;DP=120;GENE=TNFRSF13B	GT:DP:AD	0/1:120:60,60

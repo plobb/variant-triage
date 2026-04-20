@@ -1,0 +1,2 @@
+[console_scripts]
+cyvcf2 = cyvcf2.__main__:cli

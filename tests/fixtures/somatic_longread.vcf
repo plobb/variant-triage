@@ -1,0 +1,24 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowDepth,Description="Insufficient read depth">
+##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description="Somatic mutation">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency in tumour">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total depth">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of SV">
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Sample depth">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allele depth REF,ALT">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##FORMAT=<ID=HP,Number=1,Type=Integer,Description="Haplotype identifier (ONT phasing)">
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr17,length=81195210>
+##contig=<ID=chr3,length=198022430>
+##contig=<ID=chr12,length=133851895>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TUMOUR_SAMPLE
+chr7	55174772	.	C	T	42	PASS	SOMATIC;AF=0.35;DP=45;GENE=EGFR	GT:DP:AD:AF:HP	0/1:45:29,16:0.35:1
+chr17	7578406	.	C	T	38	PASS	SOMATIC;AF=0.28;DP=38;GENE=TP53	GT:DP:AD:AF:HP	0/1:38:27,11:0.28:2
+chr3	178936091	.	A	T	55	PASS	SOMATIC;AF=0.52;DP=50;GENE=PIK3CA	GT:DP:AD:AF:HP	0/1:50:24,26:0.52:1
+chr12	25398284	.	C	A	22	LowDepth	SOMATIC;AF=0.18;DP=12;GENE=KRAS	GT:DP:AD:AF:HP	0/1:12:10,2:0.18:2
+chr17	7576852	.	C	<DEL>	65	PASS	SOMATIC;SVTYPE=DEL;END=7577000;DP=40;GENE=TP53	GT:DP:AD:AF:HP	0/1:40:22,18:0.45:1
