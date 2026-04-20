@@ -1,13 +1,13 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class VariantOrigin(str, Enum):
+class VariantOrigin( StrEnum):
     GERMLINE = "GERMLINE"
     SOMATIC = "SOMATIC"
     UNKNOWN = "UNKNOWN"
 
 
-class Zygosity(str, Enum):
+class Zygosity( StrEnum):
     HOMOZYGOUS_REF = "HOM_REF"
     HETEROZYGOUS = "HET"
     HOMOZYGOUS_ALT = "HOM_ALT"
@@ -15,7 +15,7 @@ class Zygosity(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
-class ConsequenceType(str, Enum):
+class ConsequenceType( StrEnum):
     MISSENSE = "missense_variant"
     NONSENSE = "stop_gained"
     FRAMESHIFT = "frameshift_variant"
@@ -31,7 +31,7 @@ class ConsequenceType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ClassificationTier(str, Enum):
+class ClassificationTier( StrEnum):
     PATHOGENIC = "Pathogenic"
     LIKELY_PATHOGENIC = "Likely_pathogenic"
     VUS = "Variant_of_uncertain_significance"
@@ -39,7 +39,7 @@ class ClassificationTier(str, Enum):
     BENIGN = "Benign"
 
 
-class EvidenceCode(str, Enum):
+class EvidenceCode( StrEnum):
     # ACMG/AMP 2015 codes
     PVS1 = "PVS1"
     PS1 = "PS1"
@@ -71,7 +71,7 @@ class EvidenceCode(str, Enum):
     BP7 = "BP7"
 
 
-class SVType(str, Enum):
+class SVType( StrEnum):
     DEL = "DEL"
     DUP = "DUP"
     INV = "INV"
@@ -80,7 +80,7 @@ class SVType(str, Enum):
     CNV = "CNV"
 
 
-class AuditAction(str, Enum):
+class AuditAction( StrEnum):
     CREATE = "CREATE"
     READ = "READ"
     UPDATE = "UPDATE"
