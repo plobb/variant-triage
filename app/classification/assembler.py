@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.classification.base import EvidenceBundle
-from app.classification.evidence.clinvar import ClinVarClient
-from app.classification.evidence.gnomad import GnomadClient
 from app.domain.enums import ConsequenceType
-from app.domain.variant import VCFRecord
+
+if TYPE_CHECKING:
+    from app.classification.evidence.clinvar import ClinVarClient
+    from app.classification.evidence.gnomad import GnomadClient
+    from app.domain.variant import VCFRecord
 
 _SPLICE_CONSEQUENCES = {
     ConsequenceType.SPLICE_DONOR,

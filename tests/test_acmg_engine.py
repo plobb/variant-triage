@@ -1,11 +1,9 @@
 """Integration tests for RuleEngine using DEFAULT_RULES and mock EvidenceBundles."""
 from __future__ import annotations
 
-import pytest
-
 from app.classification.base import EvidenceBundle, RuleEngine
 from app.classification.rules import DEFAULT_RULES
-from app.domain.enums import ClassificationTier, ConsequenceType
+from app.domain.enums import ClassificationTier
 from app.domain.variant import VCFRecord
 from tests.fixtures.mock_evidence import (
     benign_bundle,

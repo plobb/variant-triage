@@ -1,8 +1,6 @@
 """Unit tests for individual ACMG rules — no network calls."""
 from __future__ import annotations
 
-import pytest
-
 from app.classification.base import EvidenceBundle
 from app.classification.rules.pm1 import PM1Rule
 from app.classification.rules.pm2_ba1 import BA1Rule, PM2Rule
