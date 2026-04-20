@@ -34,4 +34,4 @@ pytest-cov==5.0.0
 # --- Linting / type checking (dev only) ---
 ruff==0.4.7
 mypy==1.10.0
-types-passlib==1.7.7.20240316
+types-passlib==1.7.7.20240327

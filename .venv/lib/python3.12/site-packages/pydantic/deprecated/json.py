@@ -7,12 +7,11 @@ from ipaddress import IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6
 from pathlib import Path
 from re import Pattern
 from types import GeneratorType
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Type, Union
 from uuid import UUID
 
 from typing_extensions import deprecated
 
-from .._internal._import_utils import import_cached_base_model
 from ..color import Color
 from ..networks import NameEmail
 from ..types import SecretBytes, SecretStr
@@ -51,7 +50,7 @@ def decimal_encoder(dec_value: Decimal) -> Union[int, float]:
         return float(dec_value)
 
 
-ENCODERS_BY_TYPE: dict[type[Any], Callable[[Any], Any]] = {
+ENCODERS_BY_TYPE: Dict[Type[Any], Callable[[Any], Any]] = {
     bytes: lambda o: o.decode(),
     Color: str,
     datetime.date: isoformat,
@@ -91,12 +90,12 @@ def pydantic_encoder(obj: Any) -> Any:
     )
     from dataclasses import asdict, is_dataclass
 
-    BaseModel = import_cached_base_model()
+    from ..main import BaseModel
 
     if isinstance(obj, BaseModel):
         return obj.model_dump()
     elif is_dataclass(obj):
-        return asdict(obj)  # type: ignore
+        return asdict(obj)
 
     # Check the class type and its superclasses for a matching encoder
     for base in obj.__class__.__mro__[:-1]:
@@ -114,7 +113,7 @@ def pydantic_encoder(obj: Any) -> Any:
     '`custom_pydantic_encoder` is deprecated, use `BaseModel.model_dump` instead.',
     category=None,
 )
-def custom_pydantic_encoder(type_encoders: dict[Any, Callable[[type[Any]], Any]], obj: Any) -> Any:
+def custom_pydantic_encoder(type_encoders: Dict[Any, Callable[[Type[Any]], Any]], obj: Any) -> Any:
     warnings.warn(
         '`custom_pydantic_encoder` is deprecated, use `BaseModel.model_dump` instead.',
         category=PydanticDeprecatedSince20,

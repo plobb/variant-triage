@@ -1,22 +1,19 @@
 """Tools to provide pretty/human-readable display of objects."""
-
 from __future__ import annotations as _annotations
 
 import types
-from collections.abc import Callable, Collection, Generator, Iterable
-from typing import TYPE_CHECKING, Any, ForwardRef, cast
+import typing
+from typing import Any
 
 import typing_extensions
-from typing_extensions import TypeAlias
-from typing_inspection import typing_objects
-from typing_inspection.introspection import is_union_origin
 
 from . import _typing_extra
 
-if TYPE_CHECKING:
-    # TODO remove type error comments when we drop support for Python 3.9
-    ReprArgs: TypeAlias = Iterable[tuple[str | None, Any]]  # pyright: ignore[reportGeneralTypeIssues]
-    RichReprResult: TypeAlias = Iterable[Any | tuple[Any] | tuple[str, Any] | tuple[str, Any, Any]]  # pyright: ignore[reportGeneralTypeIssues]
+if typing.TYPE_CHECKING:
+    ReprArgs: typing_extensions.TypeAlias = 'typing.Iterable[tuple[str | None, Any]]'
+    RichReprResult: typing_extensions.TypeAlias = (
+        'typing.Iterable[Any | tuple[Any] | tuple[str, Any] | tuple[str, Any, Any]]'
+    )
 
 
 class PlainRepr(str):
@@ -34,7 +31,8 @@ class Representation:
     # `__rich_repr__` is used by [rich](https://rich.readthedocs.io/en/stable/pretty.html).
     # (this is not a docstring to avoid adding a docstring to classes which inherit from Representation)
 
-    __slots__ = ()
+    # we don't want to use a type annotation here as it can break get_type_hints
+    __slots__ = tuple()  # type: typing.Collection[str]
 
     def __repr_args__(self) -> ReprArgs:
         """Returns the attributes to show in __str__, __repr__, and __pretty__ this is generally overridden.
@@ -43,25 +41,20 @@ class Representation:
         * name - value pairs, e.g.: `[('foo_name', 'foo'), ('bar_name', ['b', 'a', 'r'])]`
         * or, just values, e.g.: `[(None, 'foo'), (None, ['b', 'a', 'r'])]`
         """
-        attrs_names = cast(Collection[str], self.__slots__)
+        attrs_names = self.__slots__
         if not attrs_names and hasattr(self, '__dict__'):
             attrs_names = self.__dict__.keys()
         attrs = ((s, getattr(self, s)) for s in attrs_names)
-        return [(a, v if v is not self else self.__repr_recursion__(v)) for a, v in attrs if v is not None]
+        return [(a, v) for a, v in attrs if v is not None]
 
     def __repr_name__(self) -> str:
         """Name of the instance's class, used in __repr__."""
         return self.__class__.__name__
 
-    def __repr_recursion__(self, object: Any) -> str:
-        """Returns the string representation of a recursive object."""
-        # This is copied over from the stdlib `pprint` module:
-        return f'<Recursion on {type(object).__name__} with id={id(object)}>'
-
     def __repr_str__(self, join_str: str) -> str:
         return join_str.join(repr(v) if a is None else f'{a}={v!r}' for a, v in self.__repr_args__())
 
-    def __pretty__(self, fmt: Callable[[Any], Any], **kwargs: Any) -> Generator[Any]:
+    def __pretty__(self, fmt: typing.Callable[[Any], Any], **kwargs: Any) -> typing.Generator[Any, None, None]:
         """Used by devtools (https://python-devtools.helpmanual.io/) to pretty print objects."""
         yield self.__repr_name__() + '('
         yield 1
@@ -94,30 +87,30 @@ def display_as_type(obj: Any) -> str:
 
     Takes some logic from `typing._type_repr`.
     """
-    if isinstance(obj, (types.FunctionType, types.BuiltinFunctionType)):
+    if isinstance(obj, types.FunctionType):
         return obj.__name__
     elif obj is ...:
         return '...'
     elif isinstance(obj, Representation):
         return repr(obj)
-    elif isinstance(obj, ForwardRef) or typing_objects.is_typealiastype(obj):
+    elif isinstance(obj, typing_extensions.TypeAliasType):
         return str(obj)
 
     if not isinstance(obj, (_typing_extra.typing_base, _typing_extra.WithArgsTypes, type)):
         obj = obj.__class__
 
-    if is_union_origin(typing_extensions.get_origin(obj)):
+    if _typing_extra.origin_is_union(typing_extensions.get_origin(obj)):
         args = ', '.join(map(display_as_type, typing_extensions.get_args(obj)))
         return f'Union[{args}]'
     elif isinstance(obj, _typing_extra.WithArgsTypes):
-        if typing_objects.is_literal(typing_extensions.get_origin(obj)):
+        if typing_extensions.get_origin(obj) == typing_extensions.Literal:
             args = ', '.join(map(repr, typing_extensions.get_args(obj)))
         else:
             args = ', '.join(map(display_as_type, typing_extensions.get_args(obj)))
         try:
             return f'{obj.__qualname__}[{args}]'
         except AttributeError:
-            return str(obj).replace('typing.', '').replace('typing_extensions.', '')  # handles TypeAliasType in 3.12
+            return str(obj)  # handles TypeAliasType in 3.12
     elif isinstance(obj, type):
         return obj.__qualname__
     else:

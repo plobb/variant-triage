@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-import importlib
-import sys
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.domain.enums import SVType, VariantOrigin
-from app.domain.variant import VCFRecord
 from app.ingestion.vcf_parser import detect_origin, parse_vcf
 
 FIXTURES = Path(__file__).parent / "fixtures"

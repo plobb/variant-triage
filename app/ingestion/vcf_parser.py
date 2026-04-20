@@ -178,7 +178,6 @@ def parse_vcf(vcf_path: Path | str, sample_name: str | None = None) -> list[VCFR
     if sample_name is not None:
         sample_names = [sample_name]
 
-    origin = detect_origin(path, {})
     records: list[VCFRecord] = []
 
     for variant in vcf:

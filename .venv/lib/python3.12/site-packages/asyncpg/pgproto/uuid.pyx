@@ -72,7 +72,7 @@ _hextable[:] = [
 ]
 
 
-std_UUID = uuid.UUID
+cdef std_UUID = uuid.UUID
 
 
 cdef pg_uuid_bytes_from_str(str u, char *out):
@@ -172,13 +172,7 @@ cdef class UUID(__UUIDReplaceMe):
         if self._int is None:
             # The cache is important because `self.int` can be
             # used multiple times by __hash__ etc.
-            #
-            # The or 0 works around a bug interaction between cpython
-            # 3.10 and earlier and Cython ~3.0.11 in which
-            # int.from_bytes returns a "non-canonical 0" and then
-            # Cython's implementation of & mishandles it.
-            # See cython/cython#6480.
-            self._int = int.from_bytes(self.bytes, 'big') or 0
+            self._int = int.from_bytes(self.bytes, 'big')
         return self._int
 
     @property
@@ -356,4 +350,4 @@ cpython.PyTuple_SET_ITEM(UUID.__mro__, 1, std_UUID)
 # </hack>
 
 
-pg_UUID = UUID
+cdef pg_UUID = UUID
