@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
     ALGORITHM: str = Field(default="HS256")
 
+    # External annotation APIs
+    ONCOKB_API_TOKEN: str | None = Field(default=None)
+
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"

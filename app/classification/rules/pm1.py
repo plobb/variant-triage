@@ -7,7 +7,7 @@ from app.domain.enums import EvidenceCode
 from app.domain.variant import EvidenceItem, VCFRecord
 
 # (chrom, start, end, label) — GRCh38 coordinates
-_HOTSPOT_DOMAINS: list[tuple[str, int, int, str]] = [
+HOTSPOT_DOMAINS: list[tuple[str, int, int, str]] = [
     ("chr17", 43044295, 43125483, "BRCA1 RING domain"),
     ("chr17", 7669609, 7676594, "TP53 DNA-binding domain"),
     ("chr12", 25227343, 25227348, "KRAS G12/G13 hotspot"),
@@ -34,7 +34,7 @@ class PM1Rule(ACMGRule):
     ) -> EvidenceItem | None:
         chrom = variant.chrom
         pos = variant.pos
-        for dom_chrom, dom_start, dom_end, label in _HOTSPOT_DOMAINS:
+        for dom_chrom, dom_start, dom_end, label in HOTSPOT_DOMAINS:
             if chrom == dom_chrom and dom_start <= pos <= dom_end:
                 return EvidenceItem(
                     code=EvidenceCode.PM1,
