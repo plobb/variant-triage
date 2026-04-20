@@ -3,17 +3,16 @@
 """
 __docformat__ = "restructuredtext en"
 
-import itertools
-
 import numpy as np
-import numpy._core.numeric as nx
-from numpy._utils import asbytes, asunicode
+import numpy.core.numeric as nx
+from numpy.compat import asbytes, asunicode
 
 
 def _decode_line(line, encoding=None):
     """Decode bytes from binary input streams.
 
-    Defaults to decoding from 'latin1'.
+    Defaults to decoding from 'latin1'. That differs from the behavior of
+    np.compat.asunicode that decodes from 'ascii'.
 
     Parameters
     ----------
@@ -73,13 +72,15 @@ def has_nested_fields(ndtype):
 
     Examples
     --------
-    >>> import numpy as np
     >>> dt = np.dtype([('name', 'S4'), ('x', float), ('y', float)])
     >>> np.lib._iotools.has_nested_fields(dt)
     False
 
     """
-    return any(ndtype[name].names is not None for name in ndtype.names or ())
+    for name in ndtype.names or ():
+        if ndtype[name].names is not None:
+            return True
+    return False
 
 
 def flatten_dtype(ndtype, flatten_base=False):
@@ -99,7 +100,6 @@ def flatten_dtype(ndtype, flatten_base=False):
 
     Examples
     --------
-    >>> import numpy as np
     >>> dt = np.dtype([('name', 'S4'), ('x', float), ('y', float),
     ...                ('block', int, (2, 3))])
     >>> np.lib._iotools.flatten_dtype(dt)
@@ -181,7 +181,7 @@ class LineSplitter:
         elif hasattr(delimiter, '__iter__'):
             _handyman = self._variablewidth_splitter
             idx = np.cumsum([0] + list(delimiter))
-            delimiter = [slice(i, j) for (i, j) in itertools.pairwise(idx)]
+            delimiter = [slice(i, j) for (i, j) in zip(idx[:-1], idx[1:])]
         # Delimiter is a single integer
         elif int(delimiter):
             (_handyman, delimiter) = (
@@ -266,7 +266,6 @@ class NameValidator:
 
     Examples
     --------
-    >>> import numpy as np
     >>> validator = np.lib._iotools.NameValidator()
     >>> validator(['file', 'field2', 'with space', 'CaSe'])
     ('file_', 'field2', 'with_space', 'CaSe')
@@ -279,8 +278,8 @@ class NameValidator:
 
     """
 
-    defaultexcludelist = 'return', 'file', 'print'
-    defaultdeletechars = frozenset(r"""~!@#$%^&*()-=+~\|]}[{';: /?.>,<""")
+    defaultexcludelist = ['return', 'file', 'print']
+    defaultdeletechars = set(r"""~!@#$%^&*()-=+~\|]}[{';: /?.>,<""")
 
     def __init__(self, excludelist=None, deletechars=None,
                  case_sensitive=None, replace_space='_'):
@@ -291,7 +290,7 @@ class NameValidator:
         self.excludelist = excludelist
         # Process the list of characters to delete
         if deletechars is None:
-            delete = set(self.defaultdeletechars)
+            delete = self.defaultdeletechars
         else:
             delete = set(deletechars)
         delete.add('"')
@@ -304,7 +303,7 @@ class NameValidator:
         elif case_sensitive.startswith('l'):
             self.case_converter = lambda x: x.lower()
         else:
-            msg = f'unrecognized case_sensitive value {case_sensitive}.'
+            msg = 'unrecognized case_sensitive value %s.' % case_sensitive
             raise ValueError(msg)
 
         self.replace_space = replace_space
@@ -355,7 +354,7 @@ class NameValidator:
         replace_space = self.replace_space
         # Initializes some variables ...
         validatednames = []
-        seen = {}
+        seen = dict()
         nbempty = 0
 
         for item in names:
@@ -404,7 +403,6 @@ def str2bool(value):
 
     Examples
     --------
-    >>> import numpy as np
     >>> np.lib._iotools.str2bool('TRUE')
     True
     >>> np.lib._iotools.str2bool('false')
@@ -497,7 +495,7 @@ class StringConverter:
         upgrade or not. Default is False.
 
     """
-    _mapper = [(nx.bool, str2bool, False),
+    _mapper = [(nx.bool_, str2bool, False),
                (nx.int_, int, -1),]
 
     # On 32-bit systems, we need to make sure that we explicitly include
@@ -566,7 +564,7 @@ class StringConverter:
         >>> StringConverter.upgrade_mapper(dateparser, default=defaultdate)
         """
         # Func is a single functions
-        if callable(func):
+        if hasattr(func, '__call__'):
             cls._mapper.insert(-1, (cls._getsubdtype(default), func, default))
             return
         elif hasattr(func, '__iter__'):
@@ -613,7 +611,7 @@ class StringConverter:
                 dtype = np.dtype(dtype_or_func)
             except TypeError:
                 # dtype_or_func must be a function, then
-                if not callable(dtype_or_func):
+                if not hasattr(dtype_or_func, '__call__'):
                     errmsg = ("The input argument `dtype` is neither a"
                               " function nor a dtype (got '%s' instead)")
                     raise TypeError(errmsg % type(dtype_or_func))
@@ -698,7 +696,7 @@ class StringConverter:
                 if not self._status:
                     self._checked = False
                 return self.default
-            raise ValueError(f"Cannot convert string '{value}'")
+            raise ValueError("Cannot convert string '%s'" % value)
 
     def __call__(self, value):
         return self._callingfunction(value)
@@ -782,7 +780,7 @@ class StringConverter:
             value.
         missing_values : {sequence of str, None}, optional
             Sequence of strings indicating a missing value. If ``None``, then
-            the existing `missing_values` are cleared. The default is ``''``.
+            the existing `missing_values` are cleared. The default is `''`.
         locked : bool, optional
             Whether the StringConverter should be locked to prevent
             automatic upgrade or not. Default is False.
@@ -846,7 +844,6 @@ def easy_dtype(ndtype, names=None, defaultfmt="f%i", **validationargs):
 
     Examples
     --------
-    >>> import numpy as np
     >>> np.lib._iotools.easy_dtype(float)
     dtype('float64')
     >>> np.lib._iotools.easy_dtype("i4, f8")
@@ -870,7 +867,7 @@ def easy_dtype(ndtype, names=None, defaultfmt="f%i", **validationargs):
         elif isinstance(names, str):
             names = names.split(",")
         names = validate(names, nbfields=nbfields, defaultfmt=defaultfmt)
-        ndtype = np.dtype({"formats": ndtype, "names": names})
+        ndtype = np.dtype(dict(formats=ndtype, names=names))
     else:
         # Explicit names
         if names is not None:
@@ -890,7 +887,7 @@ def easy_dtype(ndtype, names=None, defaultfmt="f%i", **validationargs):
         elif ndtype.names is not None:
             validate = NameValidator(**validationargs)
             # Default initial names : should we change the format ?
-            numbered_names = tuple(f"f{i}" for i in range(len(ndtype.names)))
+            numbered_names = tuple("f%i" % i for i in range(len(ndtype.names)))
             if ((ndtype.names == numbered_names) and (defaultfmt != "f%i")):
                 ndtype.names = validate([''] * len(ndtype.names),
                                         defaultfmt=defaultfmt)

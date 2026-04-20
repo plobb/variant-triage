@@ -1,24 +1,20 @@
 import math
-import platform
-import sys
 import textwrap
-import threading
-import time
-import traceback
-
+import sys
 import pytest
+import threading
+import traceback
+import time
 
 import numpy as np
 from numpy.testing import IS_PYPY
-
 from . import util
 
 
 class TestF77Callback(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "foo.f")]
 
-    @pytest.mark.parametrize("name", ["t", "t2"])
-    @pytest.mark.slow
+    @pytest.mark.parametrize("name", "t,t2".split(","))
     def test_all(self, name):
         self.check_function(name)
 
@@ -63,7 +59,7 @@ class TestF77Callback(util.F2PyTest):
         assert r == 6
         r = t(lambda a: 5 + a, fun_extra_args=(7, ))
         assert r == 12
-        r = t(math.degrees, fun_extra_args=(math.pi, ))
+        r = t(lambda a: math.degrees(a), fun_extra_args=(math.pi, ))
         assert r == 180
         r = t(math.degrees, fun_extra_args=(math.pi, ))
         assert r == 180
@@ -97,7 +93,7 @@ class TestF77Callback(util.F2PyTest):
             else:
                 return 1
 
-        f = self.module.string_callback
+        f = getattr(self.module, "string_callback")
         r = f(callback)
         assert r == 0
 
@@ -118,7 +114,7 @@ class TestF77Callback(util.F2PyTest):
                 return 3
             return 0
 
-        f = self.module.string_callback_array
+        f = getattr(self.module, "string_callback_array")
         for cu in [cu1, cu2, cu3]:
             res = f(callback, cu, cu.size)
             assert res == 0
@@ -209,7 +205,6 @@ class TestF77CallbackPythonTLS(TestF77Callback):
 class TestF90Callback(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "gh17797.f90")]
 
-    @pytest.mark.slow
     def test_gh17797(self):
         def incr(x):
             return x + 123
@@ -227,7 +222,6 @@ class TestGH18335(util.F2PyTest):
     """
     sources = [util.getpath("tests", "src", "callback", "gh18335.f90")]
 
-    @pytest.mark.slow
     def test_gh18335(self):
         def foo(x):
             x[0] += 1
@@ -241,23 +235,9 @@ class TestGH25211(util.F2PyTest):
                util.getpath("tests", "src", "callback", "gh25211.pyf")]
     module_name = "callback2"
 
-    def test_gh25211(self):
+    def test_gh18335(self):
         def bar(x):
-            return x * x
+            return x*x
 
         res = self.module.foo(bar)
         assert res == 110
-
-
-@pytest.mark.slow
-@pytest.mark.xfail(condition=(platform.system().lower() == 'darwin'),
-                   run=False,
-                   reason="Callback aborts cause CI failures on macOS")
-class TestCBFortranCallstatement(util.F2PyTest):
-    sources = [util.getpath("tests", "src", "callback", "gh26681.f90")]
-    options = ['--lower']
-
-    def test_callstatement_fortran(self):
-        with pytest.raises(ValueError, match='helpme') as exc:
-            self.module.mypy_abort = self.module.utils.my_abort
-            self.module.utils.do_something('helpme')

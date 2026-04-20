@@ -1,13 +1,12 @@
-__all__ = ['matrix', 'bmat', 'asmatrix']
+__all__ = ['matrix', 'bmat', 'mat', 'asmatrix']
 
-import ast
 import sys
 import warnings
+import ast
 
-import numpy._core.numeric as N
-from numpy._core.numeric import concatenate, isscalar
-from numpy._utils import set_module
-
+from .._utils import set_module
+import numpy.core.numeric as N
+from numpy.core.numeric import concatenate, isscalar
 # While not in __all__, matrix_power used to be defined here, so we import
 # it for backward compatibility.
 from numpy.linalg import matrix_power
@@ -19,7 +18,8 @@ def _convert_from_string(data):
 
     rows = data.split(';')
     newdata = []
-    for count, row in enumerate(rows):
+    count = 0
+    for row in rows:
         trow = row.split(',')
         newrow = []
         for col in trow:
@@ -29,6 +29,7 @@ def _convert_from_string(data):
             Ncols = len(newrow)
         elif len(newrow) != Ncols:
             raise ValueError("Rows not the same size.")
+        count += 1
         newdata.append(newrow)
     return newdata
 
@@ -55,7 +56,6 @@ def asmatrix(data, dtype=None):
 
     Examples
     --------
-    >>> import numpy as np
     >>> x = np.array([[1, 2], [3, 4]])
 
     >>> m = np.asmatrix(x)
@@ -75,15 +75,14 @@ class matrix(N.ndarray):
     """
     matrix(data, dtype=None, copy=True)
 
-    Returns a matrix from an array-like object, or from a string of data.
-
-    A matrix is a specialized 2-D array that retains its 2-D nature
-    through operations.  It has certain special operators, such as ``*``
-    (matrix multiplication) and ``**`` (matrix power).
-
     .. note:: It is no longer recommended to use this class, even for linear
               algebra. Instead use regular arrays. The class may be removed
               in the future.
+
+    Returns a matrix from an array-like object, or from a string of data.
+    A matrix is a specialized 2-D array that retains its 2-D nature
+    through operations.  It has certain special operators, such as ``*``
+    (matrix multiplication) and ``**`` (matrix power).
 
     Parameters
     ----------
@@ -103,7 +102,6 @@ class matrix(N.ndarray):
 
     Examples
     --------
-    >>> import numpy as np
     >>> a = np.matrix('1 2; 3 4')
     >>> a
     matrix([[1, 2],
@@ -115,7 +113,6 @@ class matrix(N.ndarray):
 
     """
     __array_priority__ = 10.0
-
     def __new__(subtype, data, dtype=None, copy=True):
         warnings.warn('the matrix subclass is not the recommended way to '
                       'represent matrices or deal with linear algebra (see '
@@ -139,16 +136,13 @@ class matrix(N.ndarray):
             new = data.view(subtype)
             if intype != data.dtype:
                 return new.astype(intype)
-            if copy:
-                return new.copy()
-            else:
-                return new
+            if copy: return new.copy()
+            else: return new
 
         if isinstance(data, str):
             data = _convert_from_string(data)
 
         # now convert data to an array
-        copy = None if not copy else True
         arr = N.array(data, dtype=dtype, copy=copy)
         ndim = arr.ndim
         shape = arr.shape
@@ -173,13 +167,12 @@ class matrix(N.ndarray):
 
     def __array_finalize__(self, obj):
         self._getitem = False
-        if (isinstance(obj, matrix) and obj._getitem):
-            return
+        if (isinstance(obj, matrix) and obj._getitem): return
         ndim = self.ndim
         if (ndim == 2):
             return
         if (ndim > 2):
-            newshape = tuple(x for x in self.shape if x > 1)
+            newshape = tuple([x for x in self.shape if x > 1])
             ndim = len(newshape)
             if ndim == 2:
                 self.shape = newshape
@@ -221,10 +214,10 @@ class matrix(N.ndarray):
         return out
 
     def __mul__(self, other):
-        if isinstance(other, (N.ndarray, list, tuple)):
+        if isinstance(other, (N.ndarray, list, tuple)) :
             # This promotes 1-D vectors to row vectors
             return N.dot(self, asmatrix(other))
-        if isscalar(other) or not hasattr(other, '__rmul__'):
+        if isscalar(other) or not hasattr(other, '__rmul__') :
             return N.dot(self, other)
         return NotImplemented
 
@@ -251,9 +244,9 @@ class matrix(N.ndarray):
         """
         if axis is None:
             return self[0, 0]
-        elif axis == 0:
+        elif axis==0:
             return self
-        elif axis == 1:
+        elif axis==1:
             return self.transpose()
         else:
             raise ValueError("unsupported axis")
@@ -326,6 +319,7 @@ class matrix(N.ndarray):
         """
         return N.ndarray.sum(self, axis, dtype, out, keepdims=True)._collapse(axis)
 
+
     # To update docstring from array to matrix...
     def squeeze(self, axis=None):
         """
@@ -377,6 +371,7 @@ class matrix(N.ndarray):
 
         """
         return N.ndarray.squeeze(self, axis=axis)
+
 
     # To update docstring from array to matrix...
     def flatten(self, order='C'):
@@ -482,8 +477,7 @@ class matrix(N.ndarray):
                 [ 1.11803399]])
 
         """
-        return N.ndarray.std(self, axis, dtype, out, ddof,
-                             keepdims=True)._collapse(axis)
+        return N.ndarray.std(self, axis, dtype, out, ddof, keepdims=True)._collapse(axis)
 
     def var(self, axis=None, dtype=None, out=None, ddof=0):
         """
@@ -517,8 +511,7 @@ class matrix(N.ndarray):
                 [1.25]])
 
         """
-        return N.ndarray.var(self, axis, dtype, out, ddof,
-                             keepdims=True)._collapse(axis)
+        return N.ndarray.var(self, axis, dtype, out, ddof, keepdims=True)._collapse(axis)
 
     def prod(self, axis=None, dtype=None, out=None):
         """
@@ -795,10 +788,10 @@ class matrix(N.ndarray):
                 [3]])
 
         """
-        return N.ptp(self, axis, out)._align(axis)
+        return N.ndarray.ptp(self, axis, out)._align(axis)
 
     @property
-    def I(self):  # noqa: E743
+    def I(self):
         """
         Returns the (multiplicative) inverse of invertible `self`.
 
@@ -900,6 +893,7 @@ class matrix(N.ndarray):
 
         """
         return self.__array__().ravel()
+
 
     def ravel(self, order='C'):
         """
@@ -1069,11 +1063,10 @@ def bmat(obj, ldict=None, gdict=None):
 
     Examples
     --------
-    >>> import numpy as np
-    >>> A = np.asmatrix('1 1; 1 1')
-    >>> B = np.asmatrix('2 2; 2 2')
-    >>> C = np.asmatrix('3 4; 5 6')
-    >>> D = np.asmatrix('7 8; 9 0')
+    >>> A = np.mat('1 1; 1 1')
+    >>> B = np.mat('2 2; 2 2')
+    >>> C = np.mat('3 4; 5 6')
+    >>> D = np.mat('7 8; 9 0')
 
     All the following expressions construct the same block matrix:
 
@@ -1117,3 +1110,5 @@ def bmat(obj, ldict=None, gdict=None):
         return matrix(concatenate(arr_rows, axis=0))
     if isinstance(obj, N.ndarray):
         return matrix(obj)
+
+mat = asmatrix

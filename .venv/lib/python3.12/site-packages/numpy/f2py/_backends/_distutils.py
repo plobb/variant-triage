@@ -1,22 +1,21 @@
-import os
-import shutil
-import sys
-import warnings
-
-from numpy.distutils.core import Extension, setup
-from numpy.distutils.misc_util import dict_append
-from numpy.distutils.system_info import get_info
-from numpy.exceptions import VisibleDeprecationWarning
-
 from ._backend import Backend
+
+from numpy.distutils.core import setup, Extension
+from numpy.distutils.system_info import get_info
+from numpy.distutils.misc_util import dict_append
+from numpy.exceptions import VisibleDeprecationWarning
+import os
+import sys
+import shutil
+import warnings
 
 
 class DistutilsBackend(Backend):
     def __init__(sef, *args, **kwargs):
         warnings.warn(
-            "\ndistutils has been deprecated since NumPy 1.26.x\n"
+            "distutils has been deprecated since NumPy 1.26.x"
             "Use the Meson backend instead, or generate wrappers"
-            " without -c and use a custom build script",
+            "without -c and use a custom build script",
             VisibleDeprecationWarning,
             stacklevel=2,
         )
@@ -43,7 +42,7 @@ class DistutilsBackend(Backend):
                 i = get_info(n)
                 if not i:
                     print(
-                        f"No {n!r} resources found"
+                        f"No {repr(n)} resources found"
                         "in system (try `f2py --help-link`)"
                     )
                 dict_append(ext_args, **i)

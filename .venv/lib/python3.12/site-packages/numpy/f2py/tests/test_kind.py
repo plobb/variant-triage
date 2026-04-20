@@ -1,22 +1,17 @@
-import platform
-import sys
-
+import os
 import pytest
+import platform
 
 from numpy.f2py.crackfortran import (
     _selected_int_kind_func as selected_int_kind,
     _selected_real_kind_func as selected_real_kind,
 )
-
 from . import util
 
-IS_PPC_OR_AIX = platform.machine().lower().startswith("ppc") or platform.system() == 'AIX'
 
 class TestKind(util.F2PyTest):
     sources = [util.getpath("tests", "src", "kind", "foo.f90")]
 
-    @pytest.mark.skipif(sys.maxsize < 2 ** 31 + 1,
-                        reason="Fails for 32 bit machines")
     def test_int(self):
         """Test `int` kind_func for integers up to 10**40."""
         selectedintkind = self.module.selectedintkind
@@ -38,7 +33,7 @@ class TestKind(util.F2PyTest):
                 i
             ), f"selectedrealkind({i}): expected {selected_real_kind(i)!r} but got {selectedrealkind(i)!r}"
 
-    @pytest.mark.xfail(IS_PPC_OR_AIX,
+    @pytest.mark.xfail(platform.machine().lower().startswith("ppc"),
                        reason="Some PowerPC may not support full IEEE 754 precision")
     def test_quad_precision(self):
         """

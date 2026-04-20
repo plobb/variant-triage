@@ -1,28 +1,17 @@
 import os
-import sys
 from os.path import join
-
-import pytest
+import sys
 
 import numpy as np
+from numpy.testing import (assert_equal, assert_allclose, assert_array_equal,
+                           assert_raises)
+import pytest
+
 from numpy.random import (
-    MT19937,
-    PCG64,
-    PCG64DXSM,
-    SFC64,
-    Generator,
-    Philox,
-    RandomState,
-    SeedSequence,
-    default_rng,
+    Generator, MT19937, PCG64, PCG64DXSM, Philox, RandomState, SeedSequence,
+    SFC64, default_rng
 )
 from numpy.random._common import interface
-from numpy.testing import (
-    assert_allclose,
-    assert_array_equal,
-    assert_equal,
-    assert_raises,
-)
 
 try:
     import cffi  # noqa: F401
@@ -141,11 +130,9 @@ def gauss_from_uint(x, n, bits):
 
 
 def test_seedsequence():
-    from numpy.random.bit_generator import (
-        ISeedSequence,
-        ISpawnableSeedSequence,
-        SeedlessSeedSequence,
-    )
+    from numpy.random.bit_generator import (ISeedSequence,
+                                            ISpawnableSeedSequence,
+                                            SeedlessSeedSequence)
 
     s1 = SeedSequence(range(10), spawn_key=(1, 2), pool_size=6)
     s1.spawn(10)
@@ -311,24 +298,6 @@ class Base:
         aa = pickle.loads(pickle.dumps(ss))
         assert_equal(ss.state, aa.state)
 
-    def test_pickle_preserves_seed_sequence(self):
-        # GH 26234
-        # Add explicit test that bit generators preserve seed sequences
-        import pickle
-
-        bit_generator = self.bit_generator(*self.data1['seed'])
-        ss = bit_generator.seed_seq
-        bg_plk = pickle.loads(pickle.dumps(bit_generator))
-        ss_plk = bg_plk.seed_seq
-        assert_equal(ss.state, ss_plk.state)
-        assert_equal(ss.pool, ss_plk.pool)
-
-        bit_generator.seed_seq.spawn(10)
-        bg_plk = pickle.loads(pickle.dumps(bit_generator))
-        ss_plk = bg_plk.seed_seq
-        assert_equal(ss.state, ss_plk.state)
-        assert_equal(ss.n_children_spawned, ss_plk.n_children_spawned)
-
     def test_invalid_state_type(self):
         bit_generator = self.bit_generator(*self.data1['seed'])
         with pytest.raises(TypeError):
@@ -380,9 +349,8 @@ class Base:
         bit_generator = self.bit_generator(*self.data1['seed'])
         state = bit_generator.state
         alt_state = bit_generator.__getstate__()
-        assert isinstance(alt_state, tuple)
-        assert_state_equal(state, alt_state[0])
-        assert isinstance(alt_state[1], SeedSequence)
+        assert_state_equal(state, alt_state)
+
 
 class TestPhilox(Base):
     @classmethod
@@ -534,29 +502,6 @@ class TestSFC64(Base):
         cls.invalid_init_types = [(3.2,), ([None],), (1, None)]
         cls.invalid_init_values = [(-1,)]
 
-    def test_legacy_pickle(self):
-        # Pickling format was changed in 2.0.x
-        import gzip
-        import pickle
-
-        expected_state = np.array(
-            [
-                9957867060933711493,
-                532597980065565856,
-                14769588338631205282,
-                13
-            ],
-            dtype=np.uint64
-        )
-
-        base_path = os.path.split(os.path.abspath(__file__))[0]
-        pkl_file = os.path.join(base_path, "data", "sfc64_np126.pkl.gz")
-        with gzip.open(pkl_file) as gz:
-            sfc = pickle.load(gz)
-
-        assert isinstance(sfc, SFC64)
-        assert_equal(sfc.state["state"]["state"], expected_state)
-
 
 class TestDefaultRNG:
     def test_seed(self):
@@ -571,25 +516,3 @@ class TestDefaultRNG:
         rg2 = default_rng(rg)
         assert rg2 is rg
         assert rg2.bit_generator is bg
-
-    @pytest.mark.thread_unsafe(
-        reason="np.random.set_bit_generator affects global state"
-    )
-    def test_coercion_RandomState_Generator(self):
-        # use default_rng to coerce RandomState to Generator
-        rs = RandomState(1234)
-        rg = default_rng(rs)
-        assert isinstance(rg.bit_generator, MT19937)
-        assert rg.bit_generator is rs._bit_generator
-
-        # RandomState with a non MT19937 bit generator
-        _original = np.random.get_bit_generator()
-        bg = PCG64(12342298)
-        np.random.set_bit_generator(bg)
-        rs = np.random.mtrand._rand
-        rg = default_rng(rs)
-        assert rg.bit_generator is bg
-
-        # vital to get global state back to original, otherwise
-        # other tests start to fail.
-        np.random.set_bit_generator(_original)

@@ -47,7 +47,7 @@ F2PySwapThreadLocalCallbackPtr(char *key, void *ptr)
                 "failed");
     }
 
-    value = PyDict_GetItemString(local_dict, key); // noqa: borrowed-ref OK
+    value = PyDict_GetItemString(local_dict, key);
     if (value != NULL) {
         prev = PyLong_AsVoidPtr(value);
         if (PyErr_Occurred()) {
@@ -87,7 +87,7 @@ F2PyGetThreadLocalCallbackPtr(char *key)
                 "F2PyGetThreadLocalCallbackPtr: PyThreadState_GetDict failed");
     }
 
-    value = PyDict_GetItemString(local_dict, key); // noqa: borrowed-ref OK
+    value = PyDict_GetItemString(local_dict, key);
     if (value != NULL) {
         prev = PyLong_AsVoidPtr(value);
         if (PyErr_Occurred()) {
@@ -111,7 +111,7 @@ get_descr_from_type_and_elsize(const int type_num, const int elsize)  {
     if (descr == NULL) {
       return NULL;
     }
-    PyDataType_SET_ELSIZE(descr, elsize);
+    descr->elsize = elsize;
   }
   return descr;
 }
@@ -363,9 +363,7 @@ fortran_getattr(PyFortranObject *fp, char *name)
 {
     int i, j, k, flag;
     if (fp->dict != NULL) {
-        // python 3.13 added PyDict_GetItemRef
-#if PY_VERSION_HEX < 0x030D0000
-        PyObject *v = _PyDict_GetItemStringWithError(fp->dict, name); // noqa: borrowed-ref OK
+        PyObject *v = _PyDict_GetItemStringWithError(fp->dict, name);
         if (v == NULL && PyErr_Occurred()) {
             return NULL;
         }
@@ -373,17 +371,6 @@ fortran_getattr(PyFortranObject *fp, char *name)
             Py_INCREF(v);
             return v;
         }
-#else
-        PyObject *v;
-        int result = PyDict_GetItemStringRef(fp->dict, name, &v);
-        if (result == -1) {
-            return NULL;
-        }
-        else if (result == 1) {
-            return v;
-        }
-#endif
-
     }
     for (i = 0, j = 1; i < fp->len && (j = strcmp(name, fp->defs[i].name));
          i++)
@@ -816,13 +803,13 @@ get_elsize(PyObject *obj) {
   */
 
   if (PyArray_Check(obj)) {
-    return PyArray_ITEMSIZE((PyArrayObject *)obj);
+    return PyArray_DESCR((PyArrayObject *)obj)->elsize;
   } else if (PyBytes_Check(obj)) {
     return PyBytes_GET_SIZE(obj);
   } else if (PyUnicode_Check(obj)) {
     return PyUnicode_GET_LENGTH(obj);
   } else if (PySequence_Check(obj)) {
-    PyObject* fast = PySequence_Fast(obj, "f2py:fortranobject.c:get_elsize"); // noqa: borrowed-ref OK
+    PyObject* fast = PySequence_Fast(obj, "f2py:fortranobject.c:get_elsize");
     if (fast != NULL) {
       Py_ssize_t i, n = PySequence_Fast_GET_SIZE(fast);
       int sz, elsize = 0;
@@ -876,7 +863,7 @@ ndarray_from_pyobj(const int type_num,
      * dtype('S<width>'). In addition, there is also dtype('c'), that
      * appears as dtype('S1') (these have the same type_num value),
      * but is actually different (.char attribute is either 'S' or
-     * 'c', respectively).
+     * 'c', respecitely).
      *
      * In Fortran, character arrays and strings are different
      * concepts.  The relation between Fortran types, NumPy dtypes,
@@ -917,7 +904,7 @@ ndarray_from_pyobj(const int type_num,
     if (descr == NULL) {
       return NULL;
     }
-    elsize = PyDataType_ELSIZE(descr);
+    elsize = descr->elsize;
     if ((intent & F2PY_INTENT_HIDE)
         || ((intent & F2PY_INTENT_CACHE) && (obj == Py_None))
         || ((intent & F2PY_OPTIONAL) && (obj == Py_None))
@@ -1123,7 +1110,7 @@ array_from_pyobj(const int type_num,
     if possible. Provided for backward compatibility.
    */
   PyArray_Descr* descr = PyArray_DescrFromType(type_num);
-  int elsize = PyDataType_ELSIZE(descr);
+  int elsize = descr->elsize;
   Py_DECREF(descr);
   return ndarray_from_pyobj(type_num, elsize, dims, rank, intent, obj, NULL);
 }

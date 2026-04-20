@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Any
-
 import numpy as np
 
 AR_LIKE_b = [[True, True], [True, True]]
@@ -14,6 +12,10 @@ AR_i8: np.ndarray[Any, np.dtype[np.int64]] = np.array(AR_LIKE_i, dtype=np.int64)
 np.ndenumerate(AR_i8)
 np.ndenumerate(AR_LIKE_f)
 np.ndenumerate(AR_LIKE_U)
+
+np.ndenumerate(AR_i8).iter
+np.ndenumerate(AR_LIKE_f).iter
+np.ndenumerate(AR_LIKE_U).iter
 
 next(np.ndenumerate(AR_i8))
 next(np.ndenumerate(AR_LIKE_f))

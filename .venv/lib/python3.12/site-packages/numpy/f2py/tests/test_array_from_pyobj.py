@@ -1,27 +1,23 @@
+import os
+import sys
 import copy
 import platform
-import sys
-from pathlib import Path
-
 import pytest
 
 import numpy as np
-from numpy._core._type_aliases import c_names_dict as _c_names_dict
 
+from numpy.testing import assert_, assert_equal
+from numpy.core.multiarray import typeinfo as _typeinfo
 from . import util
 
 wrap = None
 
 # Extend core typeinfo with CHARACTER to test dtype('c')
-c_names_dict = dict(
-    CHARACTER=np.dtype("c"),
-    **_c_names_dict
-)
+_ti = _typeinfo['STRING']
+typeinfo = dict(
+    CHARACTER=type(_ti)(('c', _ti.num, 8, _ti.alignment, _ti.type)),
+    **_typeinfo)
 
-
-def get_testdir():
-    testroot = Path(__file__).resolve().parent / "src"
-    return testroot / "array_from_pyobj"
 
 def setup_module():
     """
@@ -30,11 +26,24 @@ def setup_module():
     """
     global wrap
 
+    # Check compiler availability first
+    if not util.has_c_compiler():
+        pytest.skip("No C compiler available")
+
     if wrap is None:
+        config_code = """
+        config.add_extension('test_array_from_pyobj_ext',
+                             sources=['wrapmodule.c', 'fortranobject.c'],
+                             define_macros=[])
+        """
+        d = os.path.dirname(__file__)
         src = [
-            get_testdir() / "wrapmodule.c",
+            util.getpath("tests", "src", "array_from_pyobj", "wrapmodule.c"),
+            util.getpath("src", "fortranobject.c"),
+            util.getpath("src", "fortranobject.h"),
         ]
-        wrap = util.build_meson(src, module_name="test_array_from_pyobj_ext")
+        wrap = util.build_module_distutils(src, config_code,
+                                           "test_array_from_pyobj_ext")
 
 
 def flags_info(arr):
@@ -83,13 +92,16 @@ class Intent:
         return self.__class__(self.intent_list + [name])
 
     def __str__(self):
-        return f"intent({','.join(self.intent_list)})"
+        return "intent(%s)" % (",".join(self.intent_list))
 
     def __repr__(self):
-        return f"Intent({self.intent_list!r})"
+        return "Intent(%r)" % (self.intent_list)
 
     def is_intent(self, *names):
-        return all(name in self.intent_list for name in names)
+        for name in names:
+            if name not in self.intent_list:
+                return False
+        return True
 
     def is_intent_exact(self, *names):
         return len(self.intent_list) == len(names) and self.is_intent(*names)
@@ -144,12 +156,12 @@ _cast_dict['CHARACTER'] = ['CHARACTER']
 
 # 32 bit system malloc typically does not provide the alignment required by
 # 16 byte long double types this means the inout intent cannot be satisfied
-# and several tests fail as the alignment flag can be randomly true or false
+# and several tests fail as the alignment flag can be randomly true or fals
 # when numpy gains an aligned allocator the tests could be enabled again
 #
-# Furthermore, on macOS ARM64 and AIX, LONGDOUBLE is an alias for DOUBLE.
+# Furthermore, on macOS ARM64, LONGDOUBLE is an alias for DOUBLE.
 if ((np.intp().dtype.itemsize != 4 or np.clongdouble().dtype.alignment <= 8)
-        and sys.platform not in ["win32", "aix"]
+        and sys.platform != "win32"
         and (platform.system(), platform.processor()) != ("Darwin", "arm")):
     _type_names.extend(["LONGDOUBLE", "CDOUBLE", "CLONGDOUBLE"])
     _cast_dict["LONGDOUBLE"] = _cast_dict["LONG"] + [
@@ -173,7 +185,7 @@ class Type:
         if isinstance(name, np.dtype):
             dtype0 = name
             name = None
-            for n, i in c_names_dict.items():
+            for n, i in typeinfo.items():
                 if not isinstance(i, type) and dtype0.type is i.type:
                     name = n
                     break
@@ -189,19 +201,19 @@ class Type:
         self.NAME = name.upper()
 
         if self.NAME == 'CHARACTER':
-            info = c_names_dict[self.NAME]
-            self.type_num = wrap.NPY_STRING
+            info = typeinfo[self.NAME]
+            self.type_num = getattr(wrap, 'NPY_STRING')
             self.elsize = 1
             self.dtype = np.dtype('c')
         elif self.NAME.startswith('STRING'):
-            info = c_names_dict[self.NAME[:6]]
-            self.type_num = wrap.NPY_STRING
+            info = typeinfo[self.NAME[:6]]
+            self.type_num = getattr(wrap, 'NPY_STRING')
             self.elsize = int(self.NAME[6:] or 0)
             self.dtype = np.dtype(f'S{self.elsize}')
         else:
-            info = c_names_dict[self.NAME]
+            info = typeinfo[self.NAME]
             self.type_num = getattr(wrap, 'NPY_' + self.NAME)
-            self.elsize = info.itemsize
+            self.elsize = info.bits // 8
             self.dtype = np.dtype(info.type)
 
         assert self.type_num == info.num
@@ -221,28 +233,28 @@ class Type:
         return [self.__class__(_m) for _m in _type_names]
 
     def smaller_types(self):
-        bits = c_names_dict[self.NAME].alignment
+        bits = typeinfo[self.NAME].alignment
         types = []
         for name in _type_names:
-            if c_names_dict[name].alignment < bits:
+            if typeinfo[name].alignment < bits:
                 types.append(Type(name))
         return types
 
     def equal_types(self):
-        bits = c_names_dict[self.NAME].alignment
+        bits = typeinfo[self.NAME].alignment
         types = []
         for name in _type_names:
             if name == self.NAME:
                 continue
-            if c_names_dict[name].alignment == bits:
+            if typeinfo[name].alignment == bits:
                 types.append(Type(name))
         return types
 
     def larger_types(self):
-        bits = c_names_dict[self.NAME].alignment
+        bits = typeinfo[self.NAME].alignment
         types = []
         for name in _type_names:
-            if c_names_dict[name].alignment > bits:
+            if typeinfo[name].alignment > bits:
                 types.append(Type(name))
         return types
 
@@ -292,7 +304,7 @@ class Array:
         else:
             self.pyarr = np.array(
                 np.array(obj, dtype=typ.dtypechar).reshape(*dims),
-                order=(self.intent.is_intent("c") and "C") or "F",
+                order=self.intent.is_intent("c") and "C" or "F",
             )
             assert self.pyarr.dtype == typ
         self.pyarr.setflags(write=self.arr.flags["WRITEABLE"])
@@ -544,10 +556,6 @@ class TestSharedMemory:
                 # string elsize is 0, so skipping the test
                 continue
             if t.elsize >= self.type.elsize:
-                continue
-            is_int = np.issubdtype(t.dtype, np.integer)
-            if is_int and int(self.num2seq[0]) > np.iinfo(t.dtype).max:
-                # skip test if num2seq would trigger an overflow error
                 continue
             obj = np.array(self.num2seq, dtype=t.dtype)
             shape = (len(self.num2seq), )

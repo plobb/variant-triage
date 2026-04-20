@@ -1,18 +1,14 @@
 import time
 from datetime import date
 
-import pytest
-
 import numpy as np
+from numpy.testing import (
+    assert_, assert_equal, assert_allclose, assert_raises,
+    )
 from numpy.lib._iotools import (
-    LineSplitter,
-    NameValidator,
-    StringConverter,
-    easy_dtype,
-    flatten_dtype,
-    has_nested_fields,
-)
-from numpy.testing import assert_, assert_allclose, assert_equal, assert_raises
+    LineSplitter, NameValidator, StringConverter,
+    has_nested_fields, easy_dtype, flatten_dtype
+    )
 
 
 class TestLineSplitter:
@@ -163,7 +159,7 @@ class TestStringConverter:
 
         # On systems where long defaults to 32-bit, the statuses will be
         # offset by one, so we check for this here.
-        import numpy._core.numeric as nx
+        import numpy.core.numeric as nx
         status_offset = int(nx.dtype(nx.int_).itemsize < nx.dtype(nx.int64).itemsize)
 
         # test int > 2**32
@@ -202,7 +198,6 @@ class TestStringConverter:
         except ValueError:
             pass
 
-    @pytest.mark.thread_unsafe(reason="monkeypatches StringConverter")
     def test_upgrademapper(self):
         "Tests updatemapper"
         dateparser = _bytes_to_date

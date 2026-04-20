@@ -9,27 +9,19 @@ function-based counterpart in `../from_numeric.py`.
 from __future__ import annotations
 
 import operator
-from collections.abc import Hashable
-from typing import Any, cast
+from typing import cast, Any
 
 import numpy as np
-import numpy.typing as npt
 
-
-class SubClass(npt.NDArray[np.float64]): ...
-class IntSubClass(npt.NDArray[np.intp]): ...
-
+class SubClass(np.ndarray): ...
 
 i4 = np.int32(1)
 A: np.ndarray[Any, np.dtype[np.int32]] = np.array([[1]], dtype=np.int32)
 B0 = np.empty((), dtype=np.int32).view(SubClass)
 B1 = np.empty((1,), dtype=np.int32).view(SubClass)
 B2 = np.empty((1, 1), dtype=np.int32).view(SubClass)
-B_int0: IntSubClass = np.empty((), dtype=np.intp).view(IntSubClass)
 C: np.ndarray[Any, np.dtype[np.int32]] = np.array([0, 1, 2], dtype=np.int32)
 D = np.ones(3).view(SubClass)
-
-ctypes_obj = A.ctypes
 
 i4.all()
 A.all()
@@ -46,20 +38,15 @@ A.any(out=B0)
 i4.argmax()
 A.argmax()
 A.argmax(axis=0)
-A.argmax(out=B_int0)
+A.argmax(out=B0)
 
 i4.argmin()
 A.argmin()
 A.argmin(axis=0)
-A.argmin(out=B_int0)
+A.argmin(out=B0)
 
 i4.argsort()
-i4.argsort(stable=True)
 A.argsort()
-A.argsort(stable=True)
-
-A.sort()
-A.sort(stable=True)
 
 i4.choose([()])
 _choices = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.int32)
@@ -110,11 +97,21 @@ A.min(axis=0)
 A.min(keepdims=True)
 A.min(out=B0)
 
+i4.newbyteorder()
+A.newbyteorder()
+B0.newbyteorder('|')
+
 i4.prod()
 A.prod()
 A.prod(axis=0)
 A.prod(keepdims=True)
 A.prod(out=B0)
+
+i4.ptp()
+A.ptp()
+A.ptp(axis=0)
+A.ptp(keepdims=True)
+A.astype(int).ptp(out=B0)
 
 i4.round()
 A.round()
@@ -127,7 +124,7 @@ B0.repeat(1)
 i4.std()
 A.std()
 A.std(axis=0)
-A.std(keepdims=True, mean=0.)
+A.std(keepdims=True)
 A.std(out=B0.astype(np.float64))
 
 i4.sum()
@@ -145,7 +142,7 @@ A.take([0], out=B1)
 i4.var()
 A.var()
 A.var(axis=0)
-A.var(keepdims=True, mean=0.)
+A.var(keepdims=True)
 A.var(out=B0)
 
 A.argpartition([0])
@@ -186,14 +183,3 @@ float(np.array("1", dtype=np.str_))
 complex(np.array(1.0, dtype=np.float64))
 
 operator.index(np.array(1, dtype=np.int64))
-
-# this fails on numpy 2.2.1
-# https://github.com/scipy/scipy/blob/a755ee77ec47a64849abe42c349936475a6c2f24/scipy/io/arff/tests/test_arffread.py#L41-L44
-A_float = np.array([[1, 5], [2, 4], [np.nan, np.nan]])
-A_void: npt.NDArray[np.void] = np.empty(3, [("yop", float), ("yap", float)])
-A_void["yop"] = A_float[:, 0]
-A_void["yap"] = A_float[:, 1]
-
-# regression test for https://github.com/numpy/numpy/issues/30445
-def f(x: np.generic) -> Hashable:
-    return x

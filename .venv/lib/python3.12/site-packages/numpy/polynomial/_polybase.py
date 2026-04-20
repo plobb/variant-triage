@@ -6,13 +6,11 @@ for the various polynomial classes. It operates as a mixin, but uses the
 abc module from the stdlib, hence it is only available for Python >= 2.6.
 
 """
+import os
 import abc
 import numbers
-import os
-from collections.abc import Callable
 
 import numpy as np
-
 from . import polyutils as pu
 
 __all__ = ['ABCPolyBase']
@@ -23,6 +21,8 @@ class ABCPolyBase(abc.ABC):
     ABCPolyBase provides the standard Python numerical methods
     '+', '-', '*', '//', '%', 'divmod', '**', and '()' along with the
     methods listed below.
+
+    .. versionadded:: 1.9.0
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ class ABCPolyBase(abc.ABC):
         Window, see domain for its use. The default value is the
         derived class window.
     symbol : str, optional
-        Symbol used to represent the independent variable in string
+        Symbol used to represent the independent variable in string 
         representations of the polynomial expression, e.g. for printing.
         The symbol must be a valid Python identifier. Default value is 'x'.
 
@@ -189,6 +189,8 @@ class ABCPolyBase(abc.ABC):
     def has_samecoef(self, other):
         """Check if coefficients match.
 
+        .. versionadded:: 1.6.0
+
         Parameters
         ----------
         other : class instance
@@ -200,13 +202,17 @@ class ABCPolyBase(abc.ABC):
             True if the coefficients are the same, False otherwise.
 
         """
-        return (
-            len(self.coef) == len(other.coef)
-            and np.all(self.coef == other.coef)
-        )
+        if len(self.coef) != len(other.coef):
+            return False
+        elif not np.all(self.coef == other.coef):
+            return False
+        else:
+            return True
 
     def has_samedomain(self, other):
         """Check if domains match.
+
+        .. versionadded:: 1.6.0
 
         Parameters
         ----------
@@ -224,6 +230,8 @@ class ABCPolyBase(abc.ABC):
     def has_samewindow(self, other):
         """Check if windows match.
 
+        .. versionadded:: 1.6.0
+
         Parameters
         ----------
         other : class instance
@@ -239,6 +247,8 @@ class ABCPolyBase(abc.ABC):
 
     def has_sametype(self, other):
         """Check if types match.
+
+        .. versionadded:: 1.7.0
 
         Parameters
         ----------
@@ -259,6 +269,8 @@ class ABCPolyBase(abc.ABC):
         The `other` argument is checked to see if it is of the same
         class as self with identical domain and window. If so,
         return its coefficients, otherwise return `other`.
+
+        .. versionadded:: 1.9.0
 
         Parameters
         ----------
@@ -355,14 +367,6 @@ class ABCPolyBase(abc.ABC):
         if linewidth < 1:
             linewidth = 1
         out = pu.format_float(self.coef[0])
-
-        off, scale = self.mapparms()
-
-        scaled_symbol, needs_parens = self._format_term(pu.format_float,
-                                                        off, scale)
-        if needs_parens:
-            scaled_symbol = '(' + scaled_symbol + ')'
-
         for i, coef in enumerate(self.coef[1:]):
             out += " "
             power = str(i + 1)
@@ -372,13 +376,13 @@ class ABCPolyBase(abc.ABC):
             # complex). In this case, represent the coefficient as-is.
             try:
                 if coef >= 0:
-                    next_term = "+ " + pu.format_float(coef, parens=True)
+                    next_term = f"+ " + pu.format_float(coef, parens=True)
                 else:
-                    next_term = "- " + pu.format_float(-coef, parens=True)
+                    next_term = f"- " + pu.format_float(-coef, parens=True)
             except TypeError:
                 next_term = f"+ {coef}"
             # Polynomial term
-            next_term += term_method(power, scaled_symbol)
+            next_term += term_method(power, self.symbol)
             # Length of the current line with next term added
             line_len = len(out.split('\n')[-1]) + len(next_term)
             # If not the last term in the polynomial, it will be two
@@ -431,32 +435,26 @@ class ABCPolyBase(abc.ABC):
     def _repr_latex_scalar(x, parens=False):
         # TODO: we're stuck with disabling math formatting until we handle
         # exponents in this function
-        return fr'\text{{{pu.format_float(x, parens=parens)}}}'
-
-    def _format_term(self, scalar_format: Callable, off: float, scale: float):
-        """ Format a single term in the expansion """
-        if off == 0 and scale == 1:
-            term = self.symbol
-            needs_parens = False
-        elif scale == 1:
-            term = f"{scalar_format(off)} + {self.symbol}"
-            needs_parens = True
-        elif off == 0:
-            term = f"{scalar_format(scale)}{self.symbol}"
-            needs_parens = True
-        else:
-            term = (
-                f"{scalar_format(off)} + "
-                f"{scalar_format(scale)}{self.symbol}"
-            )
-            needs_parens = True
-        return term, needs_parens
+        return r'\text{{{}}}'.format(pu.format_float(x, parens=parens))
 
     def _repr_latex_(self):
         # get the scaled argument string to the basis functions
         off, scale = self.mapparms()
-        term, needs_parens = self._format_term(self._repr_latex_scalar,
-                                               off, scale)
+        if off == 0 and scale == 1:
+            term = self.symbol
+            needs_parens = False
+        elif scale == 1:
+            term = f"{self._repr_latex_scalar(off)} + {self.symbol}"
+            needs_parens = True
+        elif off == 0:
+            term = f"{self._repr_latex_scalar(scale)}{self.symbol}"
+            needs_parens = True
+        else:
+            term = (
+                f"{self._repr_latex_scalar(off)} + "
+                f"{self._repr_latex_scalar(scale)}{self.symbol}"
+            )
+            needs_parens = True
 
         mute = r"\color{{LightGray}}{{{}}}".format
 
@@ -467,7 +465,7 @@ class ABCPolyBase(abc.ABC):
                 coef_str = f"{self._repr_latex_scalar(c)}"
             elif not isinstance(c, numbers.Real):
                 coef_str = f" + ({self._repr_latex_scalar(c)})"
-            elif c >= 0:
+            elif not np.signbit(c):
                 coef_str = f" + {self._repr_latex_scalar(c, parens=True)}"
             else:
                 coef_str = f" - {self._repr_latex_scalar(-c, parens=True)}"
@@ -492,6 +490,8 @@ class ABCPolyBase(abc.ABC):
 
         return rf"${self.symbol} \mapsto {body}$"
 
+
+
     # Pickle and copy
 
     def __getstate__(self):
@@ -508,7 +508,8 @@ class ABCPolyBase(abc.ABC):
     # Call
 
     def __call__(self, arg):
-        arg = pu.mapdomain(arg, self.domain, self.window)
+        off, scl = pu.mapparms(self.domain, self.window)
+        arg = off + scl*arg
         return self._val(arg, self.coef)
 
     def __iter__(self):
@@ -612,6 +613,10 @@ class ABCPolyBase(abc.ABC):
             return NotImplemented
         return self.__class__(coef, self.domain, self.window, self.symbol)
 
+    def __rdiv__(self, other):
+        # set to __floordiv__ /.
+        return self.__rfloordiv__(other)
+
     def __rtruediv__(self, other):
         # An instance of ABCPolyBase is not considered a
         # Number.
@@ -670,6 +675,8 @@ class ABCPolyBase(abc.ABC):
     def degree(self):
         """The degree of the series.
 
+        .. versionadded:: 1.5.0
+
         Returns
         -------
         degree : int
@@ -680,7 +687,6 @@ class ABCPolyBase(abc.ABC):
 
         Create a polynomial object for ``1 + 7*x + 4*x**2``:
 
-        >>> np.polynomial.set_default_printstyle("unicode")
         >>> poly = np.polynomial.Polynomial([1, 7, 4])
         >>> print(poly)
         1.0 + 7.0·x + 4.0·x²
@@ -709,6 +715,8 @@ class ABCPolyBase(abc.ABC):
         copy of the current series is returned. This can be useful in least
         squares where the coefficients of the high degree terms may be very
         small.
+
+        .. versionadded:: 1.5.0
 
         Parameters
         ----------
@@ -871,8 +879,8 @@ class ABCPolyBase(abc.ABC):
         if lbnd is None:
             lbnd = 0
         else:
-            lbnd = off + scl * lbnd
-        coef = self._int(self.coef, m, k, lbnd, 1. / scl)
+            lbnd = off + scl*lbnd
+        coef = self._int(self.coef, m, k, lbnd, 1./scl)
         return self.__class__(coef, self.domain, self.window, self.symbol)
 
     def deriv(self, m=1):
@@ -919,6 +927,8 @@ class ABCPolyBase(abc.ABC):
         domain.  Here y is the value of the polynomial at the points x. By
         default the domain is the same as that of the series instance.
         This method is intended mostly as a plotting aid.
+
+        .. versionadded:: 1.5.0
 
         Parameters
         ----------
@@ -972,7 +982,7 @@ class ABCPolyBase(abc.ABC):
         rcond : float, optional
             Relative condition number of the fit. Singular values smaller
             than this relative to the largest singular value will be
-            ignored. The default value is ``len(x)*eps``, where eps is the
+            ignored. The default value is len(x)*eps, where eps is the
             relative precision of the float type, about 2e-16 in most
             cases.
         full : bool, optional
@@ -986,9 +996,13 @@ class ABCPolyBase(abc.ABC):
             chosen so that the errors of the products ``w[i]*y[i]`` all have
             the same variance.  When using inverse-variance weighting, use
             ``w[i] = 1/sigma(y[i])``.  The default value is None.
+
+            .. versionadded:: 1.5.0
         window : {[beg, end]}, optional
             Window to use for the returned series. The default
             value is the default class domain
+
+            .. versionadded:: 1.6.0
         symbol : str, optional
             Symbol representing the independent variable. Default is 'x'.
 
@@ -1013,10 +1027,7 @@ class ABCPolyBase(abc.ABC):
         """
         if domain is None:
             domain = pu.getdomain(x)
-            if domain[0] == domain[1]:
-                domain[0] -= 1
-                domain[1] += 1
-        elif isinstance(domain, list) and len(domain) == 0:
+        elif type(domain) is list and len(domain) == 0:
             domain = cls.domain
 
         if window is None:
@@ -1064,7 +1075,7 @@ class ABCPolyBase(abc.ABC):
         [roots] = pu.as_series([roots], trim=False)
         if domain is None:
             domain = pu.getdomain(roots)
-        elif isinstance(domain, list) and len(domain) == 0:
+        elif type(domain) is list and len(domain) == 0:
             domain = cls.domain
 
         if window is None:
@@ -1072,7 +1083,7 @@ class ABCPolyBase(abc.ABC):
 
         deg = len(roots)
         off, scl = pu.mapparms(domain, window)
-        rnew = off + scl * roots
+        rnew = off + scl*roots
         coef = cls._fromroots(rnew) / scl**deg
         return cls(coef, domain=domain, window=window, symbol=symbol)
 
@@ -1117,6 +1128,8 @@ class ABCPolyBase(abc.ABC):
 
         Returns the series representing the basis polynomial of degree `deg`.
 
+        .. versionadded:: 1.7.0
+
         Parameters
         ----------
         deg : int
@@ -1148,7 +1161,7 @@ class ABCPolyBase(abc.ABC):
 
         if ideg != deg or ideg < 0:
             raise ValueError("deg must be non-negative integer")
-        return cls([0] * ideg + [1], domain, window, symbol)
+        return cls([0]*ideg + [1], domain, window, symbol)
 
     @classmethod
     def cast(cls, series, domain=None, window=None):
@@ -1158,6 +1171,8 @@ class ABCPolyBase(abc.ABC):
         series of one of the types supported by by the numpy.polynomial
         module, but could be some other class that supports the convert
         method.
+
+        .. versionadded:: 1.7.0
 
         Parameters
         ----------

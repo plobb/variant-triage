@@ -1,52 +1,43 @@
-from pathlib import Path
-
+import os
 import pytest
-
 import numpy as np
 from numpy.testing import assert_array_equal, assert_equal
-
 from . import util
 
 
 def get_docdir():
-    parents = Path(__file__).resolve().parents
-    try:
-        # Assumes that spin is used to run tests
-        nproot = parents[8]
-    except IndexError:
-        docdir = None
-    else:
-        docdir = nproot / "doc" / "source" / "f2py" / "code"
-    if docdir and docdir.is_dir():
-        return docdir
-    # Assumes that an editable install is used to run tests
-    return parents[3] / "doc" / "source" / "f2py" / "code"
+    # assuming that documentation tests are run from a source
+    # directory
+    return os.path.abspath(os.path.join(
+        os.path.dirname(__file__),
+        '..', '..', '..',
+        'doc', 'source', 'f2py', 'code'))
 
 
 pytestmark = pytest.mark.skipif(
-    not get_docdir().is_dir(),
-    reason=f"Could not find f2py documentation sources"
-    f"({get_docdir()} does not exist)",
-)
+    not os.path.isdir(get_docdir()),
+    reason=('Could not find f2py documentation sources'
+            f' ({get_docdir()} does not exists)'))
 
-def _path(*args):
-    return get_docdir().joinpath(*args)
 
-@pytest.mark.slow
+def _path(*a):
+    return os.path.join(*((get_docdir(),) + a))
+
+
 class TestDocAdvanced(util.F2PyTest):
     # options = ['--debug-capi', '--build-dir', '/tmp/build-f2py']
     sources = [_path('asterisk1.f90'), _path('asterisk2.f90'),
                _path('ftype.f')]
 
     def test_asterisk1(self):
-        foo = self.module.foo1
+        foo = getattr(self.module, 'foo1')
         assert_equal(foo(), b'123456789A12')
 
     def test_asterisk2(self):
-        foo = self.module.foo2
+        foo = getattr(self.module, 'foo2')
         assert_equal(foo(2), b'12')
         assert_equal(foo(12), b'123456789A12')
-        assert_equal(foo(20), b'123456789A123456789B')
+        assert_equal(foo(24), b'123456789A123456789B')
 
     def test_ftype(self):
         ftype = self.module
@@ -60,7 +51,5 @@ class TestDocAdvanced(util.F2PyTest):
         ftype.data.x[1] = 45
         assert_array_equal(ftype.data.x,
                            np.array([1, 45, 3], dtype=np.float32))
-        # gh-26718 Cleanup for repeated test runs
-        ftype.data.a = 0
 
     # TODO: implement test methods for other example Fortran codes

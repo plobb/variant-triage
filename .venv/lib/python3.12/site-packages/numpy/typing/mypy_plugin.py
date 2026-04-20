@@ -17,13 +17,6 @@ Its functionality can be split into three distinct parts:
 
   .. versionadded:: 1.22
 
-.. deprecated:: 2.3
-    The :mod:`numpy.typing.mypy_plugin` entry-point is deprecated in favor of
-    platform-agnostic static type inference. Remove
-    ``numpy.typing.mypy_plugin`` from the ``plugins`` section of your mypy
-    configuration; if that surfaces new errors, please open an issue with a
-    minimal reproducer.
-
 Examples
 --------
 To enable the plugin, one must add it to their mypy `configuration file`_:
@@ -33,15 +26,29 @@ To enable the plugin, one must add it to their mypy `configuration file`_:
     [mypy]
     plugins = numpy.typing.mypy_plugin
 
-.. _mypy: https://mypy-lang.org/
+.. _mypy: http://mypy-lang.org/
 .. _configuration file: https://mypy.readthedocs.io/en/stable/config_file.html
 
 """
 
-from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Final, TypeAlias, cast
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Final, TYPE_CHECKING, Callable
 
 import numpy as np
+
+try:
+    import mypy.types
+    from mypy.types import Type
+    from mypy.plugin import Plugin, AnalyzeTypeContext
+    from mypy.nodes import MypyFile, ImportFrom, Statement
+    from mypy.build import PRI_MED
+
+    _HookFunc = Callable[[AnalyzeTypeContext], Type]
+    MYPY_EX: None | ModuleNotFoundError = None
+except ModuleNotFoundError as ex:
+    MYPY_EX = ex
 
 __all__: list[str] = []
 
@@ -53,7 +60,6 @@ def _get_precision_dict() -> dict[str, str]:
         ("_NBitIntC", np.intc),
         ("_NBitIntP", np.intp),
         ("_NBitInt", np.int_),
-        ("_NBitLong", np.long),
         ("_NBitLongLong", np.longlong),
 
         ("_NBitHalf", np.half),
@@ -61,32 +67,43 @@ def _get_precision_dict() -> dict[str, str]:
         ("_NBitDouble", np.double),
         ("_NBitLongDouble", np.longdouble),
     ]
-    ret: dict[str, str] = {}
+    ret = {}
     for name, typ in names:
-        n = 8 * np.dtype(typ).itemsize
-        ret[f"{_MODULE}._nbit.{name}"] = f"{_MODULE}._nbit_base._{n}Bit"
+        n: int = 8 * typ().dtype.itemsize
+        ret[f'numpy._typing._nbit.{name}'] = f"numpy._{n}Bit"
     return ret
 
 
 def _get_extended_precision_list() -> list[str]:
     extended_names = [
+        "uint128",
+        "uint256",
+        "int128",
+        "int256",
+        "float80",
         "float96",
         "float128",
+        "float256",
+        "complex160",
         "complex192",
         "complex256",
+        "complex512",
     ]
     return [i for i in extended_names if hasattr(np, i)]
 
+
 def _get_c_intp_name() -> str:
     # Adapted from `np.core._internal._getintp_ctype`
-    return {
-        "i": "c_int",
-        "l": "c_long",
-        "q": "c_longlong",
-    }.get(np.dtype("n").char, "c_long")
+    char = np.dtype('p').char
+    if char == 'i':
+        return "c_int"
+    elif char == 'l':
+        return "c_long"
+    elif char == 'q':
+        return "c_longlong"
+    else:
+        return "c_long"
 
-
-_MODULE: Final = "numpy._typing"
 
 #: A dictionary mapping type-aliases in `numpy._typing._nbit` to
 #: concrete `numpy.typing.NBitBase` subclasses.
@@ -95,35 +112,19 @@ _PRECISION_DICT: Final = _get_precision_dict()
 #: A list with the names of all extended precision `np.number` subclasses.
 _EXTENDED_PRECISION_LIST: Final = _get_extended_precision_list()
 
-#: The name of the ctypes equivalent of `np.intp`
+#: The name of the ctypes quivalent of `np.intp`
 _C_INTP: Final = _get_c_intp_name()
 
 
-try:
-    if TYPE_CHECKING:
-        from mypy.typeanal import TypeAnalyser
+def _hook(ctx: AnalyzeTypeContext) -> Type:
+    """Replace a type-alias with a concrete ``NBitBase`` subclass."""
+    typ, _, api = ctx
+    name = typ.name.split(".")[-1]
+    name_new = _PRECISION_DICT[f"numpy._typing._nbit.{name}"]
+    return api.named_type(name_new)
 
-    import mypy.types
-    from mypy.build import PRI_MED
-    from mypy.nodes import ImportFrom, MypyFile, Statement
-    from mypy.plugin import AnalyzeTypeContext, Plugin
 
-except ModuleNotFoundError as e:
-
-    def plugin(version: str) -> type:
-        raise e
-
-else:
-
-    _HookFunc: TypeAlias = Callable[[AnalyzeTypeContext], mypy.types.Type]
-
-    def _hook(ctx: AnalyzeTypeContext) -> mypy.types.Type:
-        """Replace a type-alias with a concrete ``NBitBase`` subclass."""
-        typ, _, api = ctx
-        name = typ.name.split(".")[-1]
-        name_new = _PRECISION_DICT[f"{_MODULE}._nbit.{name}"]
-        return cast("TypeAnalyser", api).named_type(name_new)
-
+if TYPE_CHECKING or MYPY_EX is None:
     def _index(iterable: Iterable[Statement], id: str) -> int:
         """Identify the first ``ImportFrom`` instance the specified `id`."""
         for i, value in enumerate(iterable):
@@ -135,7 +136,7 @@ else:
     def _override_imports(
         file: MypyFile,
         module: str,
-        imports: list[tuple[str, str | None]],
+        imports: list[tuple[str, None | str]],
     ) -> None:
         """Override the first `module`-based import with new `imports`."""
         # Construct a new `from module import y` statement
@@ -143,14 +144,14 @@ else:
         import_obj.is_top_level = True
 
         # Replace the first `module`-based import statement with `import_obj`
-        for lst in [file.defs, cast("list[Statement]", file.imports)]:
+        for lst in [file.defs, file.imports]:  # type: list[Statement]
             i = _index(lst, module)
             lst[i] = import_obj
 
     class _NumpyPlugin(Plugin):
         """A mypy plugin for handling versus numpy-specific typing tasks."""
 
-        def get_type_analyze_hook(self, fullname: str) -> _HookFunc | None:
+        def get_type_analyze_hook(self, fullname: str) -> None | _HookFunc:
             """Set the precision of platform-specific `numpy.number`
             subclasses.
 
@@ -166,35 +167,30 @@ else:
             """Handle all import-based overrides.
 
             * Import platform-specific extended-precision `numpy.number`
-              subclasses (*e.g.* `numpy.float96` and `numpy.float128`).
+              subclasses (*e.g.* `numpy.float96`, `numpy.float128` and
+              `numpy.complex256`).
             * Import the appropriate `ctypes` equivalent to `numpy.intp`.
 
             """
-            fullname = file.fullname
-            if fullname == "numpy":
+            ret = [(PRI_MED, file.fullname, -1)]
+
+            if file.fullname == "numpy":
                 _override_imports(
-                    file,
-                    f"{_MODULE}._extended_precision",
+                    file, "numpy._typing._extended_precision",
                     imports=[(v, v) for v in _EXTENDED_PRECISION_LIST],
                 )
-            elif fullname == "numpy.ctypeslib":
+            elif file.fullname == "numpy.ctypeslib":
                 _override_imports(
-                    file,
-                    "ctypes",
+                    file, "ctypes",
                     imports=[(_C_INTP, "_c_intp")],
                 )
-            return [(PRI_MED, fullname, -1)]
+            return ret
 
-    def plugin(version: str) -> type:
-        import warnings
-
-        plugin = "numpy.typing.mypy_plugin"
-        # Deprecated 2025-01-10, NumPy 2.3
-        warn_msg = (
-            f"`{plugin}` is deprecated, and will be removed in a future "
-            f"release. Please remove `plugins = {plugin}` in your mypy config."
-            f"(deprecated in NumPy 2.3)"
-        )
-        warnings.warn(warn_msg, DeprecationWarning, stacklevel=3)
-
+    def plugin(version: str) -> type[_NumpyPlugin]:
+        """An entry-point for mypy."""
         return _NumpyPlugin
+
+else:
+    def plugin(version: str) -> type[_NumpyPlugin]:
+        """An entry-point for mypy."""
+        raise MYPY_EX
