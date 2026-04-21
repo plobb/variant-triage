@@ -36,3 +36,4 @@ ruff==0.4.7
 mypy==1.10.0
 types-passlib==1.7.7.20240327
 numpy<2.0
+bcrypt>=3.2,<4.0
