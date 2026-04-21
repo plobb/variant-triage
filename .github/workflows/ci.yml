@@ -69,8 +69,8 @@ jobs:
             gcc g++ make \
             zlib1g-dev libbz2-dev liblzma-dev \
             libcurl4-openssl-dev libssl-dev
-       - name: Create test database
-         run: |
+      - name: Create test database
+        run: |
           PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE variant_triage_test;"
       - name: Install Python dependencies
         run: pip install -r requirements.txt
