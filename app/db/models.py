@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Float,
     ForeignKey,
@@ -16,12 +18,23 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-if TYPE_CHECKING:
-    from datetime import datetime
-
 
 class Base(DeclarativeBase):
     pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(256), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    samples: Mapped[list[Sample]] = relationship("Sample", back_populates="user")
 
 
 class Sample(Base):
@@ -32,10 +45,14 @@ class Sample(Base):
     patient_pseudonym: Mapped[str | None] = mapped_column(String(256), nullable=True)
     sequencing_platform: Mapped[str | None] = mapped_column(String(64), nullable=True)
     panel_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+    user: Mapped[User | None] = relationship("User", back_populates="samples")
     variants: Mapped[list[VariantModel]] = relationship(
         "VariantModel", back_populates="sample", cascade="all, delete-orphan"
     )
@@ -78,7 +95,7 @@ class Classification(Base):
     )
     tier: Mapped[str] = mapped_column(String(64), nullable=False)
     pathogenic_score: Mapped[float] = mapped_column(Float, nullable=False)
-    evidence_codes: Mapped[list[Any] | None] = mapped_column(JSONB, nullable=True)
+    evidence_codes: Mapped[Any] = mapped_column(JSONB, nullable=True)
     reviewer_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     classified_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     is_automated: Mapped[bool] = mapped_column(default=True)

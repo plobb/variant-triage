@@ -45,7 +45,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM", "TCH"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI/SQLAlchemy need runtime imports; TCH rules are incorrect here
+"app/api/**" = ["TCH"]
+"app/db/models.py" = ["TCH003", "TCH005"]
+"tests/**" = ["TCH"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
