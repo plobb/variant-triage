@@ -1,7 +1,7 @@
 # --- Stage 1: builder ---
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim-bookworm AS builder
 
-# System deps required by cyvcf2 → htslib
+# System deps required to compile cyvcf2 (bundles htslib from source)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     liblzma-dev \
     libcurl4-openssl-dev \
     libssl-dev \
-    libhts-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -21,12 +20,12 @@ RUN pip install --upgrade pip && \
 
 
 # --- Stage 2: runtime ---
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
-# Minimal runtime shared libraries for htslib / asyncpg
+# Runtime shared libraries for htslib / asyncpg
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libhts3 \
     libcurl4 \
+    libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -46,4 +45,4 @@ ENV PYTHONUNBUFFERED=1 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
