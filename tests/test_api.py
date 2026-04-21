@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 import app.db.session as _db_session_module
 from app.api.deps import get_db
@@ -22,7 +24,7 @@ from app.db.models import AuditLog, Base, Classification, Sample
 # ---------------------------------------------------------------------------
 
 _TEST_DB_URL = re.sub(r"/[^/]+$", "/variant_triage_test", settings.DB_URL)
-_test_engine = create_async_engine(_TEST_DB_URL, echo=False, pool_pre_ping=True)
+_test_engine = create_async_engine(_TEST_DB_URL, echo=False, poolclass=NullPool)
 _TestSessionLocal = async_sessionmaker(
     _test_engine, class_=AsyncSession, expire_on_commit=False
 )
@@ -31,13 +33,16 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 GERMLINE_VCF = (FIXTURES_DIR / "germline_snv.vcf").read_text()
 SOMATIC_VCF = (FIXTURES_DIR / "somatic_longread.vcf").read_text()
 
+_TEST_PW = "Testpass1!"       # standard password used across all tests
+_WRONG_PW = "BadPass999!"     # intentionally wrong password (never registered)
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(loop_scope="function", autouse=True)
 async def _setup_db() -> AsyncGenerator[None, None]:
     """Create all tables before each test and drop them after."""
     async with _test_engine.begin() as conn:
@@ -50,14 +55,14 @@ async def _setup_db() -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def test_db() -> AsyncGenerator[AsyncSession, None]:
     """Direct DB session for assertion queries."""
     async with _TestSessionLocal() as session:
         yield session
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """AsyncClient pointed at the test app with get_db overridden."""
 
@@ -78,16 +83,16 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def auth_headers(client: AsyncClient) -> dict[str, str]:
     """Register a test user and return auth headers."""
     await client.post(
         "/auth/register",
-        json={"email": "testuser@example.com", "password": "securepass1"},
+        json={"email": "testuser@example.com", "password": _TEST_PW},
     )
     resp = await client.post(
         "/auth/token",
-        data={"username": "testuser@example.com", "password": "securepass1"},
+        data={"username": "testuser@example.com", "password": _TEST_PW},
     )
     token: str = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -127,7 +132,7 @@ async def test_health_returns_200(client: AsyncClient) -> None:
 async def test_register_valid_returns_201(client: AsyncClient) -> None:
     resp = await client.post(
         "/auth/register",
-        json={"email": "new@example.com", "password": "mypassword1"},
+        json={"email": "new@example.com", "password": _TEST_PW},
     )
     assert resp.status_code == 201
     body = resp.json()
@@ -137,7 +142,7 @@ async def test_register_valid_returns_201(client: AsyncClient) -> None:
 
 
 async def test_register_duplicate_email_returns_400(client: AsyncClient) -> None:
-    payload = {"email": "dup@example.com", "password": "password123"}
+    payload = {"email": "dup@example.com", "password": _TEST_PW}
     await client.post("/auth/register", json=payload)
     resp = await client.post("/auth/register", json=payload)
     assert resp.status_code == 400
@@ -155,11 +160,11 @@ async def test_register_weak_password_returns_422(client: AsyncClient) -> None:
 async def test_token_valid_credentials_returns_token(client: AsyncClient) -> None:
     await client.post(
         "/auth/register",
-        json={"email": "login@example.com", "password": "loginpass1"},
+        json={"email": "login@example.com", "password": _TEST_PW},
     )
     resp = await client.post(
         "/auth/token",
-        data={"username": "login@example.com", "password": "loginpass1"},
+        data={"username": "login@example.com", "password": _TEST_PW},
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -170,11 +175,11 @@ async def test_token_valid_credentials_returns_token(client: AsyncClient) -> Non
 async def test_token_wrong_password_returns_401(client: AsyncClient) -> None:
     await client.post(
         "/auth/register",
-        json={"email": "auth401@example.com", "password": "rightpass1"},
+        json={"email": "auth401@example.com", "password": _TEST_PW},
     )
     resp = await client.post(
         "/auth/token",
-        data={"username": "auth401@example.com", "password": "wrongpass1"},
+        data={"username": "auth401@example.com", "password": _WRONG_PW},
     )
     assert resp.status_code == 401
 
@@ -263,14 +268,13 @@ async def test_get_variant_other_user_returns_404(
     post_resp = await _post_germline(client, auth_headers)
     variant_id: int = post_resp.json()["results"][0]["id"]
 
-    # register a second user and use their token
     await client.post(
         "/auth/register",
-        json={"email": "other@example.com", "password": "otherpass1"},
+        json={"email": "other@example.com", "password": _TEST_PW},
     )
     token_resp = await client.post(
         "/auth/token",
-        data={"username": "other@example.com", "password": "otherpass1"},
+        data={"username": "other@example.com", "password": _TEST_PW},
     )
     other_headers = {"Authorization": f"Bearer {token_resp.json()['access_token']}"}
 
@@ -281,24 +285,21 @@ async def test_get_variant_other_user_returns_404(
 async def test_list_variants_returns_only_current_user(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
-    # User A submits
     await _post_germline(client, auth_headers)
 
-    # User B submits
     await client.post(
         "/auth/register",
-        json={"email": "userb@example.com", "password": "userbpass1"},
+        json={"email": "userb@example.com", "password": _TEST_PW},
     )
     token_b = (
         await client.post(
             "/auth/token",
-            data={"username": "userb@example.com", "password": "userbpass1"},
+            data={"username": "userb@example.com", "password": _TEST_PW},
         )
     ).json()["access_token"]
     headers_b = {"Authorization": f"Bearer {token_b}"}
     await _post_germline(client, headers_b)
 
-    # Each user should see only their own variants
     resp_a = await client.get("/variants/", headers=auth_headers)
     resp_b = await client.get("/variants/", headers=headers_b)
     assert resp_a.status_code == 200
@@ -313,12 +314,12 @@ async def test_list_variants_empty_for_new_user(
 ) -> None:
     await client.post(
         "/auth/register",
-        json={"email": "fresh@example.com", "password": "freshpass1"},
+        json={"email": "fresh@example.com", "password": _TEST_PW},
     )
     token = (
         await client.post(
             "/auth/token",
-            data={"username": "fresh@example.com", "password": "freshpass1"},
+            data={"username": "fresh@example.com", "password": _TEST_PW},
         )
     ).json()["access_token"]
     resp = await client.get(
@@ -427,8 +428,8 @@ async def test_sample_row_has_correct_user_id_fk(
     assert sample is not None
     assert sample.user_id is not None
 
-    # Confirm user_id links to the registered user
     from app.db.models import User
+
     user_result = await test_db.execute(
         select(User).where(User.id == sample.user_id)
     )
