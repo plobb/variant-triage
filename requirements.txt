@@ -28,7 +28,7 @@ cyvcf2==0.30.28
 
 # --- Testing ---
 pytest==8.2.2
-pytest-asyncio==0.23.7
+pytest-asyncio==0.24.0
 pytest-cov==5.0.0
 
 # --- Linting / type checking (dev only) ---
