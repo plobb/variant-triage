@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # External annotation APIs
     ONCOKB_API_TOKEN: str | None = Field(default=None)
+    ANTHROPIC_API_KEY: str | None = Field(default=None)
 
     @property
     def is_production(self) -> bool:

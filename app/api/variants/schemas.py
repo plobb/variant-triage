@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.domain.enums import VariantOrigin
 
@@ -62,3 +62,14 @@ AnyVariantResult = Annotated[
     GermlineVariantResult | SomaticVariantResult,
     Field(discriminator="result_type"),
 ]
+
+
+class BatchInterpretationBody(BaseModel):
+    variant_ids: list[int]
+
+    @field_validator("variant_ids")
+    @classmethod
+    def max_ten(cls, v: list[int]) -> list[int]:
+        if len(v) > 10:
+            raise ValueError("Maximum 10 variant IDs per batch")
+        return v
