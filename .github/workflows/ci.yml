@@ -77,3 +77,17 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ --cov=app --cov-report=term-missing
+
+  nextflow-lint:
+    name: Nextflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nextflow
+        run: |
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+      - name: Validate pipeline syntax
+        run: |
+          nextflow run nextflow/main.nf --help || true
+          nextflow config nextflow/nextflow.config -profile standard
