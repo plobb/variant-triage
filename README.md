@@ -1,6 +1,8 @@
 # variant-triage
 
-A backend service for **variant classification and interpretation**, designed to model how clinical genomics workflows can be implemented as **reproducible, testable software systems**.
+A backend service for **variant classification and interpretation**, designed to model how clinical genomics workflows can be implemented as reproducible, testable software systems.
+
+**Stack:** Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Nextflow DSL2 · Docker · Fly.io
 
 > **This is a portfolio project using only synthetic data. See [CLINICAL_DISCLAIMER.md](CLINICAL_DISCLAIMER.md).**
 
@@ -8,23 +10,17 @@ A backend service for **variant classification and interpretation**, designed to
 
 ## Live Demo
 
-- **API:** https://variant-triage.fly.dev  
-- **Swagger UI:** https://variant-triage.fly.dev/docs  
-- **Health check:** https://variant-triage.fly.dev/health  
+- **API:** https://variant-triage.fly.dev
+- **Swagger UI:** https://variant-triage.fly.dev/docs
+- **Health check:** https://variant-triage.fly.dev/health
 
-> Note: the app may take ~30 seconds to wake from cold start on the free tier.
+> The app may take ~30 seconds to wake from cold start on the free tier.
 
 ---
 
 ## Overview
 
-Variant interpretation is often performed through a combination of pipelines, scripts, and manual review.  
-This project explores how that process can be expressed as a **structured application** with:
-
-- deterministic classification logic  
-- explicit data models  
-- traceable decision-making  
-- a consistent API surface  
+Variant interpretation is often performed through a combination of pipelines, scripts, and manual review. This project explores how that process can be expressed as a structured application with deterministic classification logic, explicit data models, traceable decision-making, and a consistent API surface.
 
 The goal is to bridge the gap between **bioinformatics workflows** and **production-facing services** used in clinical or translational settings.
 
@@ -32,20 +28,12 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## What this demonstrates
 
-- **End-to-end system design**  
-  From VCF ingestion through to classification, interpretation, and API exposure  
-
-- **Separation of concerns**  
-  Clear boundaries between domain logic, persistence, and API layer  
-
-- **Reproducibility and testability**  
-  Deterministic classification logic with comprehensive test coverage  
-
-- **Operational awareness**  
-  Authentication, audit logging, and containerised deployment  
-
-- **Extensibility**  
-  Designed to support additional evidence sources and classification frameworks  
+- **End-to-end system design** — VCF ingestion through classification, LLM-assisted interpretation, and REST API exposure
+- **Separation of concerns** — clear boundaries between domain logic, persistence, and API layer
+- **Reproducibility and testability** — deterministic classification logic with 170+ tests and full CI
+- **Operational awareness** — JWT authentication, audit logging, containerised deployment with CI/CD
+- **Clinical domain knowledge** — ACMG/AMP 2015 germline rules, AMP/ASCO/CAP somatic tiering, ClinVar and gnomAD evidence integration
+- **Extensibility** — plugin architecture for classification rules, protocol-based evidence sources
 
 ---
 
@@ -55,24 +43,35 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         variant-triage                              │
 │                                                                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐     │
-│  │  Ingestion   │   │   Domain     │   │        API           │     │
-│  │              │   │              │   │   (FastAPI / REST)   │     │
-│  │  vcf_parser  │──▶│  VCFRecord   │──▶│                      │     │
-│  │  (cyvcf2)    │   │  Variant     │   │  /variants           │     │
-│  │              │   │  Classif..   │   │  /samples            │     │
-│  └──────────────┘   └──────────────┘   │  /classifications    │     │
-│                                        └──────────┬───────────┘     │
-│  ┌──────────────────────────────────────┐          │                 │
-│  │           Persistence (SQLAlchemy 2) │◀─────────┘                 │
-│  │                                      │                            │
-│  │  Sample ──< Variant ──< Classification                          │
-│  │  AuditLog (append-only)              │                            │
-│  └─────────────────┬────────────────────┘                            │
-│                    │                                                 │
-│           ┌────────▼────────┐                                        │
-│           │  PostgreSQL 16  │                                        │
-│           └─────────────────┘                                        │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐   │
+│  │  Ingestion   │   │   Domain     │   │        API           │   │
+│  │              │   │              │   │   (FastAPI / REST)   │   │
+│  │  vcf_parser  │──▶│  VCFRecord   │──▶│                      │   │
+│  │  (cyvcf2)    │   │  Variant     │   │  /variants           │   │
+│  │  short-read  │   │  Classif..   │   │  /auth               │   │
+│  │  + long-read │   │              │   │  /interpret          │   │
+│  └──────────────┘   └──────────────┘   └──────────┬───────────┘   │
+│                                                    │               │
+│  ┌─────────────────────────────────────────────────▼─────────────┐ │
+│  │                    Classification Engine                       │ │
+│  │                                                                │ │
+│  │  ACMG Germline (10 rules)    AMP/ASCO/CAP Somatic (4 tiers)  │ │
+│  │  PVS1 · PS1 · PM1-5 · PP2/3  CIViC · OncoKB · hotspot map   │ │
+│  │  gnomAD AF · ClinVar · CADD  Tier I → IV assignment          │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                     │
+│  ┌──────────────────────────────┐  ┌──────────────────────────┐   │
+│  │  Persistence (SQLAlchemy 2)  │  │   LLM Interpretation     │   │
+│  │                              │  │                          │   │
+│  │  Sample ──< Variant          │  │  Claude-powered draft    │   │
+│  │         ──< Classification   │  │  Clinical guardrails     │   │
+│  │  AuditLog (SHA-256 hashed)   │  │  Batch support           │   │
+│  └──────────────┬───────────────┘  └──────────────────────────┘   │
+│                 │                                                   │
+│        ┌────────▼────────┐   ┌─────────────────────────────┐      │
+│        │  PostgreSQL 16  │   │  Nextflow DSL2 Pipeline     │      │
+│        └─────────────────┘   │  bcftools normalize → VEP   │      │
+│                               └─────────────────────────────┘      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -80,20 +79,12 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## Design decisions
 
-- **Classification logic implemented as pure functions**  
-  Ensures deterministic behaviour and simplifies testing  
-
-- **Audit logging with SHA-256 payload hashing**  
-  Provides a tamper-evident record of requests and outputs  
-
-- **Async database access (SQLAlchemy + asyncpg)**  
-  Supports concurrent ingestion and API usage  
-
-- **External data sources abstracted behind clients**  
-  Allows mocking in tests and future substitution  
-
-- **Strict validation via Pydantic v2**  
-  Enforces schema consistency at API boundaries  
+- **Classification logic as pure functions** — deterministic behaviour, straightforward to test in isolation
+- **Plugin architecture for ACMG rules** — each rule is an independent class implementing a common interface, making additions and overrides explicit
+- **Async evidence clients with in-memory caching** — gnomAD GraphQL and ClinVar E-utilities run concurrently per variant, results cached to avoid duplicate lookups within a batch
+- **Audit logging with SHA-256 payload hashing** — tamper-evident record of all requests without storing raw patient data
+- **LLM guardrails** — regex-based checks on model output prevent diagnosis statements and treatment recommendations from reaching callers
+- **Graceful degradation** — OncoKB and the LLM assistant both degrade to no-op if API tokens are absent, keeping the core classifier functional
 
 ---
 
@@ -101,30 +92,21 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ### Prerequisites
 
-- Docker ≥ 24 and Docker Compose v2  
-- (Optional) Python 3.12 for local development  
-
----
+- Docker ≥ 24 and Docker Compose v2
+- Python 3.12 (for local development)
 
 ### Run with Docker Compose
 
 ```bash
-git clone <repo>
+git clone https://github.com/plobb/variant-triage
 cd variant-triage
 cp .env.example .env
-
 # Set SECRET_KEY in .env
 
 docker-compose up --build
 ```
 
-API available at:
-
-```
-http://localhost:8000
-```
-
----
+API available at `http://localhost:8000`. Swagger UI at `http://localhost:8000/docs`.
 
 ### Local development
 
@@ -134,19 +116,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-source .env
+# Edit .env with your database URL and secret key
 
 alembic upgrade head
-
 uvicorn app.api.main:app --reload
-```
-
----
-
-## Example request
-
-```bash
-curl https://variant-triage.fly.dev/health
 ```
 
 ---
@@ -154,10 +127,16 @@ curl https://variant-triage.fly.dev/health
 ## Testing
 
 ```bash
+# Run all 170+ tests
 pytest tests/
+
+# With coverage report
 pytest tests/ --cov=app --cov-report=term-missing
 
+# Type checking
 mypy --strict app/
+
+# Lint
 ruff check app/ tests/
 ```
 
@@ -167,18 +146,16 @@ ruff check app/ tests/
 
 | Phase | Scope | Status |
 |---|---|---|
-| **1 — Foundation** | Models, VCF parser, DB schema, CI | ✅ Complete |
-| **2 — API layer** | FastAPI routes, JWT auth, audit logging | ✅ Complete |
-| **3 — ACMG engine** | Germline classification logic | ✅ Complete |
-| **4 — Somatic** | AMP/ASCO/CAP tiering, evidence clients | ✅ Complete |
-| **5 — Evidence** | External data integration (ClinVar, etc.) | ✅ Complete |
-| **6 — LLM assistant** | Interpretation draft generation | ✅ Complete |
-| **7 — Deployment** | Fly.io deploy, CI/CD, security docs | ✅ Complete |
+| **1 — Foundation** | Domain models, VCF parser (short + long-read), DB schema, CI | ✅ Complete |
+| **2 — API layer** | FastAPI routes, JWT auth, audit logging middleware | ✅ Complete |
+| **3 — ACMG engine** | 10-rule germline classifier, gnomAD + ClinVar evidence clients | ✅ Complete |
+| **4 — Somatic** | AMP/ASCO/CAP tiering, CIViC + OncoKB evidence clients | ✅ Complete |
+| **5 — Nextflow** | DSL2 pipeline: bcftools normalise → VEP annotation | ✅ Complete |
+| **6 — LLM assistant** | Claude-powered interpretation drafts with clinical guardrails | ✅ Complete |
+| **7 — Deployment** | Fly.io deploy, GitHub Actions CI/CD, security documentation | ✅ Complete |
 
 ---
 
-## Notes
+## Related work
 
-- This project is **not intended for clinical use**
-- Designed to explore **engineering patterns in genomics software**
-- Uses synthetic data only
+- [celltype-agent](https://github.com/plobb/celltype-agent) — agentic cell type annotation for single-cell and spatial genomics data (10x Chromium, Visium, Xenium) using Claude and curated marker databases
