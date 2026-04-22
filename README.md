@@ -18,6 +18,14 @@ A backend service for **variant classification and interpretation**, designed to
 
 ---
 
+## Documentation
+
+- [TUTORIAL.md](TUTORIAL.md) — end-to-end walkthrough with curl examples
+- [SECURITY_CONSIDERATIONS.md](SECURITY_CONSIDERATIONS.md) — compliance and security notes
+- [CLINICAL_DISCLAIMER.md](CLINICAL_DISCLAIMER.md) — research-only status
+
+---
+
 ## Overview
 
 Variant interpretation is often performed through a combination of pipelines, scripts, and manual review. This project explores how that process can be expressed as a structured application with deterministic classification logic, explicit data models, traceable decision-making, and a consistent API surface.
