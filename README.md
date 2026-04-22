@@ -20,6 +20,7 @@ A backend service for **variant classification and interpretation**, designed to
 
 ## Documentation
 
+- [OVERVIEW.md](OVERVIEW.md) — plain-English explanation of what this project does and why
 - [TUTORIAL.md](TUTORIAL.md) — end-to-end walkthrough with curl examples
 - [SECURITY_CONSIDERATIONS.md](SECURITY_CONSIDERATIONS.md) — compliance and security notes
 - [CLINICAL_DISCLAIMER.md](CLINICAL_DISCLAIMER.md) — research-only status
