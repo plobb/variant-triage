@@ -1,5 +1,9 @@
 # variant-triage
 
+![variant-triage](assets/logo.png)
+
+![variant-triage](assets/logo.png)
+
 A backend service for **variant classification and interpretation**, designed to model how clinical genomics workflows can be implemented as reproducible, testable software systems.
 
 **Stack:** Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Nextflow DSL2 · Docker · Fly.io
