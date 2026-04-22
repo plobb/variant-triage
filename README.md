@@ -48,40 +48,22 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         variant-triage                              │
-│                                                                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐   │
-│  │  Ingestion   │   │   Domain     │   │        API           │   │
-│  │              │   │              │   │   (FastAPI / REST)   │   │
-│  │  vcf_parser  │──▶│  VCFRecord   │──▶│                      │   │
-│  │  (cyvcf2)    │   │  Variant     │   │  /variants           │   │
-│  │  short-read  │   │  Classif..   │   │  /auth               │   │
-│  │  + long-read │   │              │   │  /interpret          │   │
-│  └──────────────┘   └──────────────┘   └──────────┬───────────┘   │
-│                                                    │               │
-│  ┌─────────────────────────────────────────────────▼─────────────┐ │
-│  │                    Classification Engine                       │ │
-│  │                                                                │ │
-│  │  ACMG Germline (10 rules)    AMP/ASCO/CAP Somatic (4 tiers)  │ │
-│  │  PVS1 · PS1 · PM1-5 · PP2/3  CIViC · OncoKB · hotspot map   │ │
-│  │  gnomAD AF · ClinVar · CADD  Tier I → IV assignment          │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│  ┌──────────────────────────────┐  ┌──────────────────────────┐   │
-│  │  Persistence (SQLAlchemy 2)  │  │   LLM Interpretation     │   │
-│  │                              │  │                          │   │
-│  │  Sample ──< Variant          │  │  Claude-powered draft    │   │
-│  │         ──< Classification   │  │  Clinical guardrails     │   │
-│  │  AuditLog (SHA-256 hashed)   │  │  Batch support           │   │
-│  └──────────────┬───────────────┘  └──────────────────────────┘   │
-│                 │                                                   │
-│        ┌────────▼────────┐   ┌─────────────────────────────┐      │
-│        │  PostgreSQL 16  │   │  Nextflow DSL2 Pipeline     │      │
-│        └─────────────────┘   │  bcftools normalize → VEP   │      │
-│                               └─────────────────────────────┘      │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[VCF File\nshort-read / long-read] --> B[vcf_parser\ncyvcf2]
+    B --> C[VCFRecord\nDomain Model]
+    C --> D{Origin?}
+    D -->|GERMLINE| E[ACMG Engine\n10 rules\nPVS1 · PS1 · PM1-5 · PP2/3]
+    D -->|SOMATIC| F[AMP/ASCO/CAP Engine\n4 tiers\nCIViC · OncoKB · hotspots]
+    E --> G[Evidence Clients\ngnomAD · ClinVar · CADD]
+    F --> H[Evidence Clients\nCIViC · OncoKB · gnomAD]
+    G --> I[ClassificationResult\nPathogenic → Benign]
+    H --> J[SomaticResult\nTier I → IV]
+    I --> K[FastAPI\nJWT auth · audit log]
+    J --> K
+    K --> L[(PostgreSQL 16\nSample · Variant\nClassification · AuditLog)]
+    K --> M[LLM Assistant\nClaude · guardrails]
+    N[Nextflow DSL2\nbcftools norm → VEP] -.->|pre-process| A
 ```
 
 ---
