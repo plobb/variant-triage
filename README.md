@@ -20,10 +20,10 @@ A backend service for **variant classification and interpretation**, designed to
 
 ## Documentation
 
-- [OVERVIEW.md](OVERVIEW.md) — plain-English explanation of what this project does and why
-- [TUTORIAL.md](TUTORIAL.md) — end-to-end walkthrough with curl examples
-- [SECURITY_CONSIDERATIONS.md](SECURITY_CONSIDERATIONS.md) — compliance and security notes
-- [CLINICAL_DISCLAIMER.md](CLINICAL_DISCLAIMER.md) — research-only status
+- [OVERVIEW.md](OVERVIEW.md) - plain-English explanation of what this project does and why
+- [TUTORIAL.md](TUTORIAL.md) - end-to-end walkthrough with curl examples
+- [SECURITY_CONSIDERATIONS.md](SECURITY_CONSIDERATIONS.md) - compliance and security notes
+- [CLINICAL_DISCLAIMER.md](CLINICAL_DISCLAIMER.md) - research-only status
 
 ---
 
@@ -37,12 +37,12 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## What this demonstrates
 
-- **End-to-end system design** — VCF ingestion through classification, LLM-assisted interpretation, and REST API exposure
-- **Separation of concerns** — clear boundaries between domain logic, persistence, and API layer
-- **Reproducibility and testability** — deterministic classification logic with 170+ tests and full CI
-- **Operational awareness** — JWT authentication, audit logging, containerised deployment with CI/CD
-- **Clinical domain knowledge** — ACMG/AMP 2015 germline rules, AMP/ASCO/CAP somatic tiering, ClinVar and gnomAD evidence integration
-- **Extensibility** — plugin architecture for classification rules, protocol-based evidence sources
+- **End-to-end system design** - VCF ingestion through classification, LLM-assisted interpretation, and REST API exposure
+- **Separation of concerns** - clear boundaries between domain logic, persistence, and API layer
+- **Reproducibility and testability** - deterministic classification logic with 170+ tests and full CI
+- **Operational awareness** - JWT authentication, audit logging, containerised deployment with CI/CD
+- **Clinical domain knowledge** - ACMG/AMP 2015 germline rules, AMP/ASCO/CAP somatic tiering, ClinVar and gnomAD evidence integration
+- **Extensibility** - plugin architecture for classification rules, protocol-based evidence sources
 
 ---
 
@@ -88,12 +88,12 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## Design decisions
 
-- **Classification logic as pure functions** — deterministic behaviour, straightforward to test in isolation
-- **Plugin architecture for ACMG rules** — each rule is an independent class implementing a common interface, making additions and overrides explicit
-- **Async evidence clients with in-memory caching** — gnomAD GraphQL and ClinVar E-utilities run concurrently per variant, results cached to avoid duplicate lookups within a batch
-- **Audit logging with SHA-256 payload hashing** — tamper-evident record of all requests without storing raw patient data
-- **LLM guardrails** — regex-based checks on model output prevent diagnosis statements and treatment recommendations from reaching callers
-- **Graceful degradation** — OncoKB and the LLM assistant both degrade to no-op if API tokens are absent, keeping the core classifier functional
+- **Classification logic as pure functions** - deterministic behaviour, straightforward to test in isolation
+- **Plugin architecture for ACMG rules** - each rule is an independent class implementing a common interface, making additions and overrides explicit
+- **Async evidence clients with in-memory caching** - gnomAD GraphQL and ClinVar E-utilities run concurrently per variant, results cached to avoid duplicate lookups within a batch
+- **Audit logging with SHA-256 payload hashing** - tamper-evident record of all requests without storing raw patient data
+- **LLM guardrails** - regex-based checks on model output prevent diagnosis statements and treatment recommendations from reaching callers
+- **Graceful degradation** - OncoKB and the LLM assistant both degrade to no-op if API tokens are absent, keeping the core classifier functional
 
 ---
 
@@ -155,16 +155,16 @@ ruff check app/ tests/
 
 | Phase | Scope | Status |
 |---|---|---|
-| **1 — Foundation** | Domain models, VCF parser (short + long-read), DB schema, CI | ✅ Complete |
-| **2 — API layer** | FastAPI routes, JWT auth, audit logging middleware | ✅ Complete |
-| **3 — ACMG engine** | 10-rule germline classifier, gnomAD + ClinVar evidence clients | ✅ Complete |
-| **4 — Somatic** | AMP/ASCO/CAP tiering, CIViC + OncoKB evidence clients | ✅ Complete |
-| **5 — Nextflow** | DSL2 pipeline: bcftools normalise → VEP annotation | ✅ Complete |
-| **6 — LLM assistant** | Claude-powered interpretation drafts with clinical guardrails | ✅ Complete |
-| **7 — Deployment** | Fly.io deploy, GitHub Actions CI/CD, security documentation | ✅ Complete |
+| **1 - Foundation** | Domain models, VCF parser (short + long-read), DB schema, CI | ✅ Complete |
+| **2 - API layer** | FastAPI routes, JWT auth, audit logging middleware | ✅ Complete |
+| **3 - ACMG engine** | 10-rule germline classifier, gnomAD + ClinVar evidence clients | ✅ Complete |
+| **4 - Somatic** | AMP/ASCO/CAP tiering, CIViC + OncoKB evidence clients | ✅ Complete |
+| **5 - Nextflow** | DSL2 pipeline: bcftools normalise → VEP annotation | ✅ Complete |
+| **6 - LLM assistant** | Claude-powered interpretation drafts with clinical guardrails | ✅ Complete |
+| **7 - Deployment** | Fly.io deploy, GitHub Actions CI/CD, security documentation | ✅ Complete |
 
 ---
 
 ## Related work
 
-- [celltype-agent](https://github.com/plobb/celltype-agent) — agentic cell type annotation for single-cell and spatial genomics data (10x Chromium, Visium, Xenium) using Claude and curated marker databases
+- [celltype-agent](https://github.com/plobb/celltype-agent) - agentic cell type annotation for single-cell and spatial genomics data (10x Chromium, Visium, Xenium) using Claude and curated marker databases
