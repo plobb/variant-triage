@@ -24,6 +24,9 @@ class AuditMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Any],
     ) -> Response:
+        if request.url.path == "/health":
+            return await call_next(request)
+
         body: bytes = await request.body()
 
         response: Response = Response(status_code=500)
