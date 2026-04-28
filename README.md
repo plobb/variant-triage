@@ -2,7 +2,13 @@
 
 ![variant-triage](assets/logo.png)
 
-A backend service for **variant classification and interpretation**, designed to model how clinical genomics workflows can be implemented as reproducible, testable software systems.
+A backend service for **deterministic, evidence-grounded variant classification and interpretation**.
+
+Unlike typical LLM-driven tools that generate plausible outputs, this system constrains reasoning through structured rules (ACMG/AMP), curated evidence (ClinVar, gnomAD), and explicit decision paths to produce **reproducible, auditable results**.
+
+Designed to model how clinical genomics workflows can be implemented as **testable, production-style software systems** rather than ad hoc analysis pipelines.
+
+> Most LLM approaches generate plausible interpretations. This system is designed to produce reproducible ones.
 
 **Stack:** Python 3.12 · FastAPI · PostgreSQL 16 · SQLAlchemy 2 · Nextflow DSL2 · Docker · Fly.io
 
@@ -29,6 +35,19 @@ A backend service for **variant classification and interpretation**, designed to
 
 ---
 
+## Why this matters
+
+Variant interpretation is not just about generating an answer — it is about producing results that can be **trusted, reproduced, and audited**.
+
+Most current approaches fall into two categories:
+
+- **Rule-based pipelines** — deterministic but rigid and hard to extend  
+- **LLM-driven tools** — flexible but opaque and difficult to validate  
+
+This project explores a third approach:
+
+> **Controlled reasoning** — combining deterministic classification logic with constrained LLM assistance to produce outputs that are both flexible and reliable.
+
 ## Overview
 
 Variant interpretation is often performed through a combination of pipelines, scripts, and manual review. This project explores how that process can be expressed as a structured application with deterministic classification logic, explicit data models, traceable decision-making, and a consistent API surface.
@@ -39,7 +58,9 @@ The goal is to bridge the gap between **bioinformatics workflows** and **product
 
 ## What this demonstrates
 
-- **End-to-end system design** - VCF ingestion through classification, LLM-assisted interpretation, and REST API exposure
+- **Controlled LLM reasoning** - model outputs are constrained, validated, and grounded in curated evidence rather than free-form generation
+
+- **End-to-end system design** - VCF ingestion through classification, LLM-assisted interpretation (with guardrails and constrained outputs), and REST API exposure
 - **Separation of concerns** - clear boundaries between domain logic, persistence, and API layer
 - **Reproducibility and testability** - deterministic classification logic with 170+ tests and full CI
 - **Operational awareness** - JWT authentication, audit logging, containerised deployment with CI/CD
